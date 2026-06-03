@@ -10,3 +10,6 @@ wheels/
 .venv
 
 .env
+
+# Allow committing the prebuilt recorder frontend dist
+!components/webm_recorder/frontend/dist/
