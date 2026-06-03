@@ -116,23 +116,21 @@ col1, col2 = st.columns(2)
 with col1:
     evo_anterior = st.text_area("1. Pegue la evolución del DÍA ANTERIOR:", height=200)
 with col2:
-    # If a transcription just arrived we store it in session_state['last_transcript']
-    # and mark it as not yet consumed. Use that value as the initial value for the
-    # text area (no widget key) so we avoid modifying a widget-bound session_state
-    # after the widget is instantiated (which can raise an exception on some
-    # Streamlit builds).
+    # If a transcription just arrived, move it into the session_state key that
+    # the widget will bind to BEFORE creating the widget. This avoids modifying
+    # a widget-bound session_state after instantiation (which raises errors).
     last_transcript = st.session_state.get("last_transcript")
     consumed = st.session_state.get("last_transcript_consumed", True)
-    initial_value = last_transcript if (last_transcript and not consumed) else ""
-
-    cambios_dia = st.text_area(
-        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, value=initial_value
-    )
-
-    # If we populated the text area from last_transcript, mark it consumed so it
-    # won't be re-inserted on every rerun.
     if last_transcript and not consumed:
+        # populate the widget-backed session key and mark consumed
+        st.session_state["cambios_dia"] = last_transcript
         st.session_state["last_transcript_consumed"] = True
+
+    # Create the text area bound to session_state['cambios_dia'] so it reflects
+    # the transcription if we populated it above.
+    cambios_dia = st.text_area(
+        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
+    )
 
 # Recorder component (from Whisper Feature)
 RECORDER_COMPONENT = None
