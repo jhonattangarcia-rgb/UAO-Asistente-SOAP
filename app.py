@@ -116,8 +116,11 @@ col1, col2 = st.columns(2)
 with col1:
     evo_anterior = st.text_area("1. Pegue la evolución del DÍA ANTERIOR:", height=200)
 with col2:
+    # Use a widget key so the value can be updated via st.session_state when
+    # a transcription arrives. This avoids relying on st.experimental_rerun
+    # which may not be available in all Streamlit builds.
     cambios_dia = st.text_area(
-        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200
+        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
     )
 
 # Recorder component (from Whisper Feature)
@@ -248,21 +251,40 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
             audio_utils.ensure_tmp_dir()
             audio_utils.TMP_WEBM.write_bytes(raw)
             tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
-            transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
-            # Insert transcript automatically (Q1=B)
-            # Set into session_state so UI can read it reliably
-            st.session_state["cambios_dia"] = transcript
-            st.session_state["last_transcript"] = transcript
+            try:
+                transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
+            except Exception as e:
+                # Bubble up transcriber errors to the UI for clarity
+                st.error(f"Error en la transcripción: {e}")
+                transcript = None
+
             # Remove temporary file
             try:
                 audio_utils.TMP_WEBM.unlink()
             except Exception:
                 pass
-            st.success("Transcripción completada e insertada en 'Cambios del día'.")
-            # If we can, update the visible text area by triggering a rerun
-            # Place the transcript into the cambios_dia variable used below
-            cambios_dia = transcript
-            st.experimental_rerun()
+
+            # Handle transcription results
+            if not transcript:
+                # Explicitly inform the user that transcription returned no text
+                st.session_state["last_transcript"] = transcript
+                st.warning(
+                    "Transcripción completada pero sin texto. Verifica OPENROUTER_API_KEY, el servicio de OpenRouter y revisa los logs del servidor."
+                )
+            else:
+                # Insert transcript automatically (Q1=B)
+                st.session_state["cambios_dia"] = transcript
+                st.session_state["last_transcript"] = transcript
+                st.success("Transcripción completada e insertada en 'Cambios del día'.")
+
+            # Try to trigger a rerun if supported; otherwise the widget key will
+            # ensure the text area reflects session_state on the next interaction.
+            if hasattr(st, "experimental_rerun"):
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    # Non-fatal: continue without crashing
+                    pass
         else:
             st.error("No se pudo decodificar audio de la grabación.")
     except Exception as exc:

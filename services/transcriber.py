@@ -111,6 +111,9 @@ class OpenRouterTranscriber:
                 backoff *= 2
                 continue
 
+            # Log the basic response for diagnostics
+            logger.info("OpenRouter response status=%d, text_len=%d", r.status_code, len(r.text or ""))
+
             if r.status_code == 401:
                 raise RuntimeError(f"Unauthorized (401). Check OPENROUTER_API_KEY. Response: {r.text}")
             if r.status_code == 429 or r.status_code >= 500:
@@ -129,9 +132,17 @@ class OpenRouterTranscriber:
             try:
                 resp = r.json()
             except Exception:
+                # Non-JSON response is unexpected — surface it
                 raise RuntimeError(f"OpenRouter returned non-JSON response: {r.text}")
 
-            return resp.get("text") or ""
+            # Ensure the API returned actual transcription text
+            text = resp.get("text")
+            if text is None:
+                logger.warning("OpenRouter response JSON missing 'text' field: %s", resp)
+                # Surface as an error so callers can decide how to inform the user
+                raise RuntimeError(f"OpenRouter response missing transcription text. Response: {resp}")
+
+            return text
 
         raise RuntimeError(f"OpenRouter transcription failed after retries. Last error: {last_err}")
 
