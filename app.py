@@ -7,9 +7,13 @@ import difflib
 from fpdf import FPDF
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-# Carga las variables del archivo .env
-load_dotenv()
+# Load .env located next to this file if present, but do NOT override existing
+# environment variables. This ensures that container/CI provided ENV vars take
+# precedence while allowing local development via a .env file.
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=str(env_path), override=False)
 
 # Accede a las claves de forma segura
 api_key = os.getenv("API_SECRET_KEY")
