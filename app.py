@@ -116,12 +116,23 @@ col1, col2 = st.columns(2)
 with col1:
     evo_anterior = st.text_area("1. Pegue la evolución del DÍA ANTERIOR:", height=200)
 with col2:
-    # Use a widget key so the value can be updated via st.session_state when
-    # a transcription arrives. This avoids relying on st.experimental_rerun
-    # which may not be available in all Streamlit builds.
+    # If a transcription just arrived we store it in session_state['last_transcript']
+    # and mark it as not yet consumed. Use that value as the initial value for the
+    # text area (no widget key) so we avoid modifying a widget-bound session_state
+    # after the widget is instantiated (which can raise an exception on some
+    # Streamlit builds).
+    last_transcript = st.session_state.get("last_transcript")
+    consumed = st.session_state.get("last_transcript_consumed", True)
+    initial_value = last_transcript if (last_transcript and not consumed) else ""
+
     cambios_dia = st.text_area(
-        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
+        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, value=initial_value
     )
+
+    # If we populated the text area from last_transcript, mark it consumed so it
+    # won't be re-inserted on every rerun.
+    if last_transcript and not consumed:
+        st.session_state["last_transcript_consumed"] = True
 
 # Recorder component (from Whisper Feature)
 RECORDER_COMPONENT = None
@@ -268,13 +279,17 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
             if not transcript:
                 # Explicitly inform the user that transcription returned no text
                 st.session_state["last_transcript"] = transcript
+                st.session_state["last_transcript_consumed"] = False
                 st.warning(
                     "Transcripción completada pero sin texto. Verifica OPENROUTER_API_KEY, el servicio de OpenRouter y revisa los logs del servidor."
                 )
             else:
                 # Insert transcript automatically (Q1=B)
-                st.session_state["cambios_dia"] = transcript
+                # Store as last_transcript and mark as not consumed so the
+                # text_area initial value will be populated on the next rerun.
                 st.session_state["last_transcript"] = transcript
+                st.session_state["last_transcript_consumed"] = False
+                st.session_state["last_transcript_time"] = __import__("time").time()
                 st.success("Transcripción completada e insertada en 'Cambios del día'.")
 
             # Try to trigger a rerun if supported; otherwise the widget key will
