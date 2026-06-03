@@ -132,12 +132,12 @@ with col2:
         "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
     )
 
-# Recorder component (from Whisper Feature)
+# Recorder component (from repo-local frontend)
 RECORDER_COMPONENT = None
 try:
     RECORDER_COMPONENT = components.declare_component(
         "webm_recorder",
-        path=str((__import__("pathlib").Path(__file__).resolve().parent.parent / "Whisper Feature" / "components" / "webm_recorder" / "frontend" / "dist")),
+        path=str(Path(__file__).resolve().parent / "components" / "webm_recorder" / "frontend" / "dist"),
     )
 except Exception:
     RECORDER_COMPONENT = None
