@@ -1,5 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
+from services import audio_utils
+from services.transcriber import OpenRouterTranscriber
 from groq import Groq
 import difflib
 from fpdf import FPDF
@@ -119,10 +121,9 @@ RECORDER_COMPONENT = None
 try:
     RECORDER_COMPONENT = components.declare_component(
         "webm_recorder",
-        path=str((__import__('pathlib').Path(__file__).resolve().parent.parent / "Whisper Feature" / "components" / "webm_recorder" / "frontend" / "dist")),
+        path=str((__import__("pathlib").Path(__file__).resolve().parent.parent / "Whisper Feature" / "components" / "webm_recorder" / "frontend" / "dist")),
     )
 except Exception:
-    # If component isn't available, recorder will be disabled
     RECORDER_COMPONENT = None
 
 if "recording_size" not in st.session_state:
@@ -130,10 +131,14 @@ if "recording_size" not in st.session_state:
 if "last_recording_b64" not in st.session_state:
     st.session_state["last_recording_b64"] = None
 
-def _save_webm_b64(encoded: str) -> None:
-    from UAO_Asistente_SOAP_fix_import import dummy  # placeholder
-    # Real saving handled by audio_utils when implemented during integration
-    return
+def _save_webm_b64(encoded: str) -> bytes | None:
+    import base64
+
+    try:
+        raw = base64.b64decode(encoded)
+        return raw
+    except Exception:
+        return None
 
 # Render recorder if available
 captured_b64 = None
@@ -234,42 +239,26 @@ if st.session_state["html_diff"]:
 if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
     st.success("Audio recibido. Iniciando transcripción...")
     try:
-        # Save temporary file via audio_utils if available
-        try:
-            from .services.audio_utils import ensure_tmp_dir, save_webm_bytes, TMP_WEBM
-        except Exception:
-            from UAO_Asistente_SOAP.services.audio_utils import ensure_tmp_dir, save_webm_bytes, TMP_WEBM
-
-        raw = None
-        try:
-            import base64
-
-            raw = base64.b64decode(captured_b64)
-        except Exception:
-            raw = None
-
+        raw = _save_webm_b64(captured_b64)
         if raw:
-            ensure_tmp_dir()
-            TMP_WEBM.write_bytes(raw)
-            # Call transcriber
-            try:
-                from .services.transcriber import OpenRouterTranscriber
-            except Exception:
-                from UAO_Asistente_SOAP.services.transcriber import OpenRouterTranscriber
-
+            audio_utils.ensure_tmp_dir()
+            audio_utils.TMP_WEBM.write_bytes(raw)
             tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
-            transcript = tr.transcribe_file(str(TMP_WEBM))
+            transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
             # Insert transcript automatically (Q1=B)
-            cambios_dia = transcript
+            # Set into session_state so UI can read it reliably
+            st.session_state["cambios_dia"] = transcript
             st.session_state["last_transcript"] = transcript
-            # Clean up tmp
+            # Remove temporary file
             try:
-                TMP_WEBM.unlink(missing_ok=True)
+                audio_utils.TMP_WEBM.unlink()
             except Exception:
                 pass
             st.success("Transcripción completada e insertada en 'Cambios del día'.")
-            # update the UI text area value - Streamlit doesn't allow direct set; show info
-            st.info("Transcripción insertada. Revisa el campo 'Cambios del día' antes de Generar.")
+            # If we can, update the visible text area by triggering a rerun
+            # Place the transcript into the cambios_dia variable used below
+            cambios_dia = transcript
+            st.experimental_rerun()
         else:
             st.error("No se pudo decodificar audio de la grabación.")
     except Exception as exc:
