@@ -1,12 +1,19 @@
 import streamlit as st
+import streamlit.components.v1 as components
+from services import audio_utils
+from services.transcriber import OpenRouterTranscriber
 from groq import Groq
 import difflib
 from fpdf import FPDF
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-# Carga las variables del archivo .env
-load_dotenv()
+# Load .env located next to this file if present, but do NOT override existing
+# environment variables. This ensures that container/CI provided ENV vars take
+# precedence while allowing local development via a .env file.
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=str(env_path), override=False)
 
 # Accede a las claves de forma segura
 api_key = os.getenv("API_SECRET_KEY")
@@ -109,9 +116,53 @@ col1, col2 = st.columns(2)
 with col1:
     evo_anterior = st.text_area("1. Pegue la evolución del DÍA ANTERIOR:", height=200)
 with col2:
+    # If a transcription just arrived, move it into the session_state key that
+    # the widget will bind to BEFORE creating the widget. This avoids modifying
+    # a widget-bound session_state after instantiation (which raises errors).
+    last_transcript = st.session_state.get("last_transcript")
+    consumed = st.session_state.get("last_transcript_consumed", True)
+    if last_transcript and not consumed:
+        # populate the widget-backed session key and mark consumed
+        st.session_state["cambios_dia"] = last_transcript
+        st.session_state["last_transcript_consumed"] = True
+
+    # Create the text area bound to session_state['cambios_dia'] so it reflects
+    # the transcription if we populated it above.
     cambios_dia = st.text_area(
-        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200
+        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
     )
+
+# Recorder component (from repo-local frontend)
+RECORDER_COMPONENT = None
+try:
+    RECORDER_COMPONENT = components.declare_component(
+        "webm_recorder",
+        path=str(Path(__file__).resolve().parent / "components" / "webm_recorder" / "frontend" / "dist"),
+    )
+except Exception:
+    RECORDER_COMPONENT = None
+
+if "recording_size" not in st.session_state:
+    st.session_state["recording_size"] = 0
+if "last_recording_b64" not in st.session_state:
+    st.session_state["last_recording_b64"] = None
+
+def _save_webm_b64(encoded: str) -> bytes | None:
+    import base64
+
+    try:
+        raw = base64.b64decode(encoded)
+        return raw
+    except Exception:
+        return None
+
+# Render recorder if available
+captured_b64 = None
+if RECORDER_COMPONENT:
+    try:
+        captured_b64 = RECORDER_COMPONENT()
+    except Exception:
+        captured_b64 = None
 
 # Inicializar estados vacíos de forma segura
 if "html_diff" not in st.session_state:
@@ -199,3 +250,55 @@ if st.session_state["html_diff"]:
         file_name="reporte_caso_clinico_soap.pdf",
         mime="application/pdf",
     )
+
+# Transcription flow: if recorder produced base64, save it and call transcriber
+if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
+    st.success("Audio recibido. Iniciando transcripción...")
+    try:
+        raw = _save_webm_b64(captured_b64)
+        if raw:
+            audio_utils.ensure_tmp_dir()
+            audio_utils.TMP_WEBM.write_bytes(raw)
+            tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
+            try:
+                transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
+            except Exception as e:
+                # Bubble up transcriber errors to the UI for clarity
+                st.error(f"Error en la transcripción: {e}")
+                transcript = None
+
+            # Remove temporary file
+            try:
+                audio_utils.TMP_WEBM.unlink()
+            except Exception:
+                pass
+
+            # Handle transcription results
+            if not transcript:
+                # Explicitly inform the user that transcription returned no text
+                st.session_state["last_transcript"] = transcript
+                st.session_state["last_transcript_consumed"] = False
+                st.warning(
+                    "Transcripción completada pero sin texto. Verifica OPENROUTER_API_KEY, el servicio de OpenRouter y revisa los logs del servidor."
+                )
+            else:
+                # Insert transcript automatically (Q1=B)
+                # Store as last_transcript and mark as not consumed so the
+                # text_area initial value will be populated on the next rerun.
+                st.session_state["last_transcript"] = transcript
+                st.session_state["last_transcript_consumed"] = False
+                st.session_state["last_transcript_time"] = __import__("time").time()
+                st.success("Transcripción completada e insertada en 'Cambios del día'.")
+
+            # Try to trigger a rerun if supported; otherwise the widget key will
+            # ensure the text area reflects session_state on the next interaction.
+            if hasattr(st, "experimental_rerun"):
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    # Non-fatal: continue without crashing
+                    pass
+        else:
+            st.error("No se pudo decodificar audio de la grabación.")
+    except Exception as exc:
+        st.error(f"Error en la transcripción: {exc}")

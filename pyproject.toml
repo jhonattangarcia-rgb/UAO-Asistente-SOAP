@@ -9,5 +9,6 @@ dependencies = [
     "groq>=1.4.0",
     "openai>=2.38.0",
     "python-dotenv>=1.2.2",
+    "requests>=2.31.0",
     "streamlit>=1.58.0",
 ]
