@@ -1,13 +1,17 @@
+import base64
+import contextlib
+import difflib
+import os
+from pathlib import Path
+
 import streamlit as st
 import streamlit.components.v1 as components
+from dotenv import load_dotenv
+from fpdf import FPDF
+from groq import Groq
+
 from services import audio_utils
 from services.transcriber import OpenRouterTranscriber
-from groq import Groq
-import difflib
-from fpdf import FPDF
-import os
-from dotenv import load_dotenv
-from pathlib import Path
 
 # Load .env located next to this file if present, but do NOT override existing
 # environment variables. This ensures that container/CI provided ENV vars take
@@ -128,9 +132,7 @@ with col2:
 
     # Create the text area bound to session_state['cambios_dia'] so it reflects
     # the transcription if we populated it above.
-    cambios_dia = st.text_area(
-        "2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia"
-    )
+    cambios_dia = st.text_area("2. Escriba los CAMBIOS DEL DÍA (Texto libre):", height=200, key="cambios_dia")
 
 # Recorder component (from repo-local frontend)
 RECORDER_COMPONENT = None
@@ -147,14 +149,14 @@ if "recording_size" not in st.session_state:
 if "last_recording_b64" not in st.session_state:
     st.session_state["last_recording_b64"] = None
 
-def _save_webm_b64(encoded: str) -> bytes | None:
-    import base64
 
+def _save_webm_b64(encoded: str) -> bytes | None:
     try:
         raw = base64.b64decode(encoded)
         return raw
     except Exception:
         return None
+
 
 # Render recorder if available
 captured_b64 = None
@@ -184,11 +186,12 @@ if st.button("Generar Evolución y Justificación", type="primary"):
                 client = Groq(api_key=GROQ_API_KEY)
                 prompt_usuario = f"EVOLUCIÓN ANTERIOR:\n{evo_anterior}\n\nCAMBIOS DEL DÍA:\n{cambios_dia}"
 
-                # Unificamos ambas variables globales para enviárselas al modelo en el rol de sistema
-                prompt_sistema_completo = f"{PROMPT_ESTRUCTURA_FIJA}\n\nREGLAS DE COMPORTAMIENTO:\n{PROMPT_REGLAS_VARIABLES}"
+                prompt_sistema_completo = (
+                    f"{PROMPT_ESTRUCTURA_FIJA}\n\nREGLAS DE COMPORTAMIENTO:\n{PROMPT_REGLAS_VARIABLES}"
+                )
 
                 response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model=os.environ.get("SOAP_MODEL"),
                     messages=[
                         {"role": "system", "content": prompt_sistema_completo},
                         {"role": "user", "content": prompt_usuario},
@@ -199,24 +202,21 @@ if st.button("Generar Evolución y Justificación", type="primary"):
                 resultado_ia = response.choices[0].message.content
                 partes = resultado_ia.split("### Justificación Clínica:")
                 nueva_evo = partes[0].strip()
-                justificacion = (
-                    partes[1].strip()
-                    if len(partes) > 1
-                    else "No se generó justificación."
-                )
+                justificacion = partes[1].strip() if len(partes) > 1 else "No se generó justificación."
 
-                # Calcular el Diff visual para la web
                 diff = difflib.ndiff(evo_anterior.split(), nueva_evo.split())
                 html_diff = []
                 for word in diff:
                     if word.startswith("+ "):
-                        html_diff.append(
-                            f"<span style='background-color: #d4edda; color: #155724; padding: 2px; border-radius: 3px;'><b>{word[2:]}</b></span>"
-                        )
+                        style = "background-color: #d4edda; color: #155724; padding: 2px; border-radius: 3px;"
+                        html_diff.append(f"<span style='{style}'><b>{word[2:]}</b></span>")
                     elif word.startswith("- "):
-                        html_diff.append(
-                            f"<span style='background-color: #f8d7da; color: #721c24; text-decoration: line-through; padding: 2px; border-radius: 3px;'>{word[2:]}</span>"
+                        style = (
+                            "background-color: #f8d7da; color: #721c24;"
+                            " text-decoration: line-through;"
+                            " padding: 2px; border-radius: 3px;"
                         )
+                        html_diff.append(f"<span style='{style}'>{word[2:]}</span>")
                     elif word.startswith("  "):
                         html_diff.append(word[2:])
 
@@ -234,8 +234,11 @@ if st.session_state["html_diff"]:
     st.success("¡Evolución procesada con éxito!")
 
     st.subheader("📋 Nueva Evolución SOAP (Cambios resaltados)")
+    div_style = (
+        "border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; background-color: #ffffff; line-height: 1.6;"
+    )
     st.markdown(
-        f"<div style='border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; background-color: #ffffff; line-height: 1.6;'>{st.session_state['html_diff']}</div>",
+        f"<div style='{div_style}'>{st.session_state['html_diff']}</div>",
         unsafe_allow_html=True,
     )
 
@@ -267,11 +270,8 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
                 st.error(f"Error en la transcripción: {e}")
                 transcript = None
 
-            # Remove temporary file
-            try:
+            with contextlib.suppress(Exception):
                 audio_utils.TMP_WEBM.unlink()
-            except Exception:
-                pass
 
             # Handle transcription results
             if not transcript:
@@ -279,7 +279,9 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
                 st.session_state["last_transcript"] = transcript
                 st.session_state["last_transcript_consumed"] = False
                 st.warning(
-                    "Transcripción completada pero sin texto. Verifica OPENROUTER_API_KEY, el servicio de OpenRouter y revisa los logs del servidor."
+                    "Transcripción completada pero sin texto. "
+                    "Verifica OPENROUTER_API_KEY, el servicio de "
+                    "OpenRouter y revisa los logs del servidor."
                 )
             else:
                 # Insert transcript automatically (Q1=B)
@@ -290,14 +292,9 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
                 st.session_state["last_transcript_time"] = __import__("time").time()
                 st.success("Transcripción completada e insertada en 'Cambios del día'.")
 
-            # Try to trigger a rerun if supported; otherwise the widget key will
-            # ensure the text area reflects session_state on the next interaction.
             if hasattr(st, "experimental_rerun"):
-                try:
+                with contextlib.suppress(Exception):
                     st.experimental_rerun()
-                except Exception:
-                    # Non-fatal: continue without crashing
-                    pass
         else:
             st.error("No se pudo decodificar audio de la grabación.")
     except Exception as exc:
