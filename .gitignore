@@ -9,10 +9,18 @@ wheels/
 # Virtual environments
 .venv
 
+# Environment variables
 .env
+
+# Temporary audio files
+tmp_audio/
+
+# Spec Kit internals — solo compartir la constitucion
+.specify/*
+!.specify/memory/
+
+# node modules
+node_modules/
 
 # Allow committing the prebuilt recorder frontend dist
 !components/webm_recorder/frontend/dist/
-
-# node modules 
-node_modules/

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 TMP_DIR = Path(__file__).resolve().parent.parent / "tmp_audio"

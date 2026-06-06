@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 import time
-from typing import List, Optional
 
 import requests
 
@@ -20,7 +19,7 @@ logger.setLevel(logging.INFO)
 class OpenRouterTranscriber:
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "openai/whisper-large-v3-turbo",
         batch_size: int = 4,
         language: str = "es",
@@ -43,7 +42,7 @@ class OpenRouterTranscriber:
             "default=noprint_wrappers=1:nokey=1",
             file_path,
         ]
-        proc = subprocess.run(command, capture_output=True, text=True)
+        proc = subprocess.run(command, capture_output=True, text=True, check=False)
         if proc.returncode != 0:
             raise RuntimeError(f"ffprobe failed: {proc.stderr.strip()}")
         try:
@@ -78,32 +77,36 @@ class OpenRouterTranscriber:
             "mp3",
             "pipe:1",
         ]
-        proc = subprocess.run(command, capture_output=True)
+        proc = subprocess.run(command, capture_output=True, check=False)
         if proc.returncode != 0:
             raise RuntimeError(f"ffmpeg chunk extraction failed: {proc.stderr.decode('utf-8', 'ignore')}")
         return proc.stdout
 
     def _call_api(self, audio_bytes: bytes, audio_format: str = "mp3") -> str:
         b64 = base64.b64encode(audio_bytes).decode("utf-8")
-        payload = {
+        payload: dict[str, object] = {
             "model": self.model,
             "input_audio": {"data": b64, "format": audio_format},
         }
 
         backoff = 1.0
-        last_err: Optional[str] = None
+        last_err: str | None = None
         for attempt in range(3):
             if not self.api_key:
-                raise RuntimeError(
-                    "OPENROUTER_API_KEY not provided. Set OPENROUTER_API_KEY in your environment."
-                )
-            headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                raise RuntimeError("OPENROUTER_API_KEY not provided. Set OPENROUTER_API_KEY in your environment.")
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
             logger.info(
                 "OpenRouter JSON attempt %d/3, audio_format=%s, raw_bytes=%d, b64_len=%d",
-                attempt + 1, audio_format, len(audio_bytes), len(b64),
+                attempt + 1,
+                audio_format,
+                len(audio_bytes),
+                len(b64),
             )
             try:
-                r = requests.post(self.endpoint, headers=headers, json=payload, timeout=120)
+                r = requests.post(self.endpoint, headers=headers, json=payload, timeout=120)  # type: ignore[arg-type]
             except requests.RequestException as exc:
                 last_err = str(exc)
                 logger.warning("OpenRouter request failed on attempt %d: %s", attempt + 1, exc)
@@ -112,17 +115,25 @@ class OpenRouterTranscriber:
                 continue
 
             # Log the basic response for diagnostics
-            logger.info("OpenRouter response status=%d, text_len=%d", r.status_code, len(r.text or ""))
+            logger.info(
+                "OpenRouter response status=%d, text_len=%d",
+                r.status_code,
+                len(r.text or ""),
+            )
 
-            if r.status_code == 401:
+            if r.status_code == 401:  # noqa: PLR2004
                 raise RuntimeError(f"Unauthorized (401). Check OPENROUTER_API_KEY. Response: {r.text}")
-            if r.status_code == 429 or r.status_code >= 500:
+            if r.status_code == 429 or r.status_code >= 500:  # noqa: PLR2004
                 last_err = f"{r.status_code}: {r.text}"
-                logger.warning("OpenRouter transient error %d, retrying after %ss", r.status_code, backoff)
+                logger.warning(
+                    "OpenRouter transient error %d, retrying after %ss",
+                    r.status_code,
+                    backoff,
+                )
                 time.sleep(backoff)
                 backoff *= 2
                 continue
-            if r.status_code >= 400:
+            if r.status_code >= 400:  # noqa: PLR2004
                 try:
                     err_data = r.json()
                 except Exception:
@@ -131,15 +142,12 @@ class OpenRouterTranscriber:
 
             try:
                 resp = r.json()
-            except Exception:
-                # Non-JSON response is unexpected — surface it
-                raise RuntimeError(f"OpenRouter returned non-JSON response: {r.text}")
+            except Exception as exc:
+                raise RuntimeError(f"OpenRouter returned non-JSON response: {r.text}") from exc
 
-            # Ensure the API returned actual transcription text
-            text = resp.get("text")
+            text: str | None = resp.get("text")
             if text is None:
                 logger.warning("OpenRouter response JSON missing 'text' field: %s", resp)
-                # Surface as an error so callers can decide how to inform the user
                 raise RuntimeError(f"OpenRouter response missing transcription text. Response: {resp}")
 
             return text
@@ -155,12 +163,24 @@ class OpenRouterTranscriber:
             chunks.append((start_ms, chunk_duration))
             start_ms += chunk_duration
 
-        logger.info("Audio duration_ms=%d → %d chunk(s) of %ds each", duration_ms, len(chunks), self.max_chunk_ms // 1000)
+        logger.info(
+            "Audio duration_ms=%d → %d chunk(s) of %ds each",
+            duration_ms,
+            len(chunks),
+            self.max_chunk_ms // 1000,
+        )
 
-        texts: List[str] = []
+        texts: list[str] = []
         for index, (start_ms, length_ms) in enumerate(chunks, start=1):
             mp3_bytes = self._extract_mp3_chunk(file_path, start_ms, length_ms)
-            logger.info("Chunk %d/%d: start_ms=%d, duration_ms=%d, mp3_bytes=%d", index, len(chunks), start_ms, length_ms, len(mp3_bytes))
+            logger.info(
+                "Chunk %d/%d: start_ms=%d, duration_ms=%d, mp3_bytes=%d",
+                index,
+                len(chunks),
+                start_ms,
+                length_ms,
+                len(mp3_bytes),
+            )
             text = self._call_api(audio_bytes=mp3_bytes, audio_format="mp3")
             texts.append(text.strip())
 
