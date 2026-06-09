@@ -20,12 +20,12 @@ class OpenRouterTranscriber:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "openai/whisper-large-v3-turbo",
+        model: str | None = None,
         batch_size: int = 4,
         language: str = "es",
     ) -> None:
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-        self.model = model
+        self.model = model or os.environ.get("OPENROUTER_MODEL", "openai/whisper-large-v3-turbo")
         self.batch_size = int(batch_size)
         self.language = language
         self.endpoint = "https://openrouter.ai/api/v1/audio/transcriptions"
