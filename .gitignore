@@ -15,6 +15,9 @@ wheels/
 # Temporary audio files
 tmp_audio/
 
+# Spec documents
+specs/
+
 # Spec Kit internals — solo compartir la constitucion
 .specify/*
 !.specify/memory/
