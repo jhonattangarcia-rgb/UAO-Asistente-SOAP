@@ -1,16 +1,15 @@
 import base64
 import contextlib
-import difflib
 import os
 from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
-from fpdf import FPDF
-from groq import Groq
 
 from services import audio_utils
+from services.pdf_generator import generate_pdf
+from services.soap_generator import SoapGenerator
 from services.transcriber import OpenRouterTranscriber
 
 # Load .env located next to this file if present, but do NOT override existing
@@ -19,101 +18,12 @@ from services.transcriber import OpenRouterTranscriber
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=str(env_path), override=False)
 
-# Accede a las claves de forma segura
-api_key = os.getenv("API_SECRET_KEY")
-
-# ==============================================================================
-# CONFIGURACIÓN DE IA Y MODELO
-# ==============================================================================
 GROQ_API_KEY = os.getenv("API_SECRET_KEY")
-
-# VARIABLE 1: LO QUE SE DEBE CONSERVAR (Estructura técnica fija de la aplicación)
-# ¡No modifiques el título '### Justificación Clínica:' para que no se rompa el PDF!
-PROMPT_ESTRUCTURA_FIJA = (
-    "Eres un asistente médico experto en formato SOAP para UCI y hospitalización. "
-    "Tu tarea es generar la nueva evolución del día de forma redactada e integrada en formato SOAP strico "
-    "(Subjetivo, Objetivo, Análisis, Plan). Al final del texto, añade obligatoriamente una sección "
-    "que empiece exactamente con el título '### Justificación Clínica:' seguido de viñetas explicativas."
-)
-
-# VARIABLE 2: LO QUE PUEDE CAMBIAR (Reglas de negocio, tono, estilo y contexto clínico)
-# Aquí puedes experimentar libremente con el comportamiento y ajustar el "tuning" del modelo.
-PROMPT_REGLAS_VARIABLES = (
-    "Toma los datos de entrada y estructúralos estrictamente en formato SOAP:\n"
-    "- S (Subjetivo): Síntomas referidos por el paciente.\n"
-    "- O (Objetivo): Signos vitales, examen físico, resultados de laboratorio/imágenes.\n"
-    "- A (Assessment/Análisis/Diagnóstico): Impresión diagnóstica, análisis de evolución, códigos CIE-10 sugeridos.\n"
-    "- P (Plan): Tratamiento, medicamentos, indicaciones, ventilación, metas y seguimiento.\n\n"
-    "REGLAS CLÍNICAS DE AUDITORÍA:\n"
-    "1. No inventes ni alucines datos que no hayan sido explícitamente mencionados.\n"
-    "2. Si algún dato del texto libre es ambiguo, colócalo en la sección del SOAP más lógica.\n"
-    "3. Mantén terminología médica precisa y formal (español hospitalario de Colombia).\n"
-    "4. Responde siempre en el mismo idioma del dictado.\n"
-    "5. Compara activamente la nota del día anterior con los cambios de hoy. En la sección final obligatoria "
-    "('### Justificación Clínica:'), responde detalladamente a estos tres puntos de control:\n"
-    "   - ¿Había datos en la sección incorrecta el día anterior que se corrigieron hoy?\n"
-    "   - ¿Faltaba alguna sección obligatoria o parámetro crítico?\n"
-    "   - Justifica clínicamente el porqué de cada cambio (ej: variaciones de medicamentos, FiO2, laboratorios) "
-    "y verifica que el diagnóstico principal cuente con su respectiva orientación CIE-10."
-)
-# ==============================================================================
+SOAP_MODEL = os.environ.get("SOAP_MODEL")
 
 st.set_page_config(page_title="Asistente SOAP UCI", layout="wide")
 st.title(" 🩺 Asistente de Evoluciones Clínicas (SOAP)")
 st.caption("Prototipo de Validación Académica - Versión Estable Modular")
-
-
-# --- FUNCIÓN DEL PDF (Anti-Errores y Sin Asteriscos) ---
-def generar_pdf_validacion(anterior, cambios, nueva, just):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-
-    def limpiar_texto(t):
-        if not t:
-            return ""
-        texto_sin_markdown = t.replace("**", "")
-        return texto_sin_markdown.encode("latin-1", "replace").decode("latin-1")
-
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "Reporte de Validacion - Asistente Clinico IA", ln=True, align="C")
-    pdf.ln(10)
-
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 8, "1. DATOS DE ENTRADA (INPUTS)", ln=True, fill=True)
-    pdf.ln(2)
-
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, "Evolucion del Dia Anterior:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, limpiar_texto(anterior))
-    pdf.ln(5)
-
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, "Cambios Reportados Hoy:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, limpiar_texto(cambios))
-    pdf.ln(10)
-
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.set_fill_color(220, 235, 252)
-    pdf.cell(0, 8, "2. RESULTADOS GENERADOS POR EL MODELO", ln=True, fill=True)
-    pdf.ln(2)
-
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, "Nueva Evolucion SOAP Sugerida:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, limpiar_texto(nueva))
-    pdf.ln(5)
-
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, "Justificacion Clinica de los Cambios:", ln=True)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 5, limpiar_texto(just))
-
-    return bytes(pdf.output())
-
 
 # --- FORMULARIO DE ENTRADA ---
 col1, col2 = st.columns(2)
@@ -150,14 +60,6 @@ if "last_recording_b64" not in st.session_state:
     st.session_state["last_recording_b64"] = None
 
 
-def _save_webm_b64(encoded: str) -> bytes | None:
-    try:
-        raw = base64.b64decode(encoded)
-        return raw
-    except Exception:
-        return None
-
-
 # Render recorder if available
 captured_b64 = None
 if RECORDER_COMPONENT:
@@ -167,8 +69,6 @@ if RECORDER_COMPONENT:
         captured_b64 = None
 
 # Inicializar estados vacíos de forma segura
-if "html_diff" not in st.session_state:
-    st.session_state["html_diff"] = None
 if "justificacion" not in st.session_state:
     st.session_state["justificacion"] = None
 if "pdf_bytes" not in st.session_state:
@@ -183,64 +83,20 @@ if st.button("Generar Evolución y Justificación", type="primary"):
     else:
         with st.spinner("Procesando datos clínicos con Groq..."):
             try:
-                client = Groq(api_key=GROQ_API_KEY)
-                prompt_usuario = f"EVOLUCIÓN ANTERIOR:\n{evo_anterior}\n\nCAMBIOS DEL DÍA:\n{cambios_dia}"
+                generator = SoapGenerator(api_key=GROQ_API_KEY, model=SOAP_MODEL)
+                result = generator.generate(evo_anterior, cambios_dia)
 
-                prompt_sistema_completo = (
-                    f"{PROMPT_ESTRUCTURA_FIJA}\n\nREGLAS DE COMPORTAMIENTO:\n{PROMPT_REGLAS_VARIABLES}"
-                )
-
-                response = client.chat.completions.create(
-                    model=os.environ.get("SOAP_MODEL"),
-                    messages=[
-                        {"role": "system", "content": prompt_sistema_completo},
-                        {"role": "user", "content": prompt_usuario},
-                    ],
-                    temperature=0.1,
-                )
-
-                resultado_ia = response.choices[0].message.content
-                partes = resultado_ia.split("### Justificación Clínica:")
-                nueva_evo = partes[0].strip()
-                justificacion = partes[1].strip() if len(partes) > 1 else "No se generó justificación."
-
-                diff = difflib.ndiff(evo_anterior.split(), nueva_evo.split())
-                html_diff = []
-                for word in diff:
-                    if word.startswith("+ "):
-                        style = "background-color: #d4edda; color: #155724; padding: 2px; border-radius: 3px;"
-                        html_diff.append(f"<span style='{style}'><b>{word[2:]}</b></span>")
-                    elif word.startswith("- "):
-                        style = (
-                            "background-color: #f8d7da; color: #721c24;"
-                            " text-decoration: line-through;"
-                            " padding: 2px; border-radius: 3px;"
-                        )
-                        html_diff.append(f"<span style='{style}'>{word[2:]}</span>")
-                    elif word.startswith("  "):
-                        html_diff.append(word[2:])
-
-                st.session_state["html_diff"] = " ".join(html_diff)
-                st.session_state["justificacion"] = justificacion
-                st.session_state["pdf_bytes"] = generar_pdf_validacion(
-                    evo_anterior, cambios_dia, nueva_evo, justificacion
+                st.session_state["justificacion"] = result.justificacion
+                st.session_state["pdf_bytes"] = generate_pdf(
+                    evo_anterior, cambios_dia, result.nueva_evo, result.justificacion
                 )
 
             except Exception as e:
                 st.error(f"Error de API: {str(e)}")
 
 # --- MOSTRAR RESULTADOS ---
-if st.session_state["html_diff"]:
+if st.session_state["justificacion"]:
     st.success("¡Evolución procesada con éxito!")
-
-    st.subheader("📋 Nueva Evolución SOAP (Cambios resaltados)")
-    div_style = (
-        "border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; background-color: #ffffff; line-height: 1.6;"
-    )
-    st.markdown(
-        f"<div style='{div_style}'>{st.session_state['html_diff']}</div>",
-        unsafe_allow_html=True,
-    )
 
     st.subheader("💡 Justificación Clínica Automatizada")
     st.info(st.session_state["justificacion"])
@@ -258,10 +114,12 @@ if st.session_state["html_diff"]:
 if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
     st.success("Audio recibido. Iniciando transcripción...")
     try:
-        raw = _save_webm_b64(captured_b64)
+        try:
+            raw = base64.b64decode(captured_b64)
+        except Exception:
+            raw = None
         if raw:
-            audio_utils.ensure_tmp_dir()
-            audio_utils.TMP_WEBM.write_bytes(raw)
+            audio_utils.save_webm_bytes(raw)
             tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
             try:
                 transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
