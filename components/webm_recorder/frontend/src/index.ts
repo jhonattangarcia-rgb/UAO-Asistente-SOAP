@@ -1,6 +1,3 @@
-const startBtn = document.createElement("button");
-const stopBtn = document.createElement("button");
-
 const sendToStreamlit = (message: object) => {
   window.parent.postMessage({ isStreamlitMessage: true, ...message }, "*");
 };
@@ -34,62 +31,73 @@ const onMessage = (event: MessageEvent) => {
 };
 
 window.addEventListener("message", onMessage, false);
-const status = document.createElement("div");
+
 const container = document.createElement("div");
+const toggleBtn = document.createElement("button");
+const status = document.createElement("span");
 
-startBtn.textContent = "Start";
-stopBtn.textContent = "Stop";
-stopBtn.disabled = true;
-status.textContent = "Listo para grabar";
+container.style.display = "flex";
+container.style.alignItems = "center";
+container.style.gap = "12px";
+container.style.fontFamily = "'Source Sans Pro', sans-serif";
+container.style.padding = "8px 4px";
+container.style.boxSizing = "border-box";
 
-container.style.fontFamily = "sans-serif";
-container.style.padding = "12px";
-startBtn.style.marginRight = "8px";
-startBtn.style.padding = "8px 14px";
-stopBtn.style.padding = "8px 14px";
-startBtn.style.cursor = "pointer";
-stopBtn.style.cursor = "pointer";
-startBtn.style.background = "#111827";
-stopBtn.style.background = "#111827";
-startBtn.style.color = "#f8fafc";
-stopBtn.style.color = "#f8fafc";
-startBtn.style.border = "1px solid #374151";
-stopBtn.style.border = "1px solid #374151";
-startBtn.style.borderRadius = "6px";
-stopBtn.style.borderRadius = "6px";
-startBtn.style.fontSize = "14px";
-stopBtn.style.fontSize = "14px";
-status.style.marginTop = "10px";
-status.style.color = "#d1d5db";
+toggleBtn.style.display = "inline-flex";
+toggleBtn.style.alignItems = "center";
+toggleBtn.style.gap = "8px";
+toggleBtn.style.padding = "8px 18px";
+toggleBtn.style.fontSize = "14px";
+toggleBtn.style.fontWeight = "600";
+toggleBtn.style.color = "#ffffff";
+toggleBtn.style.background = "#2f6fed";
+toggleBtn.style.border = "none";
+toggleBtn.style.borderRadius = "999px";
+toggleBtn.style.cursor = "pointer";
+toggleBtn.style.transition = "background-color 0.2s ease";
 
-container.appendChild(startBtn);
-container.appendChild(stopBtn);
-container.appendChild(status);
+status.style.fontSize = "13px";
+status.style.color = "#5b6472";
 
 document.body.style.margin = "0";
-document.body.style.backgroundColor = "#0e1117";
-document.body.style.color = "#fff";
+document.body.style.backgroundColor = "transparent";
+document.body.style.color = "#31333f";
+
+container.appendChild(toggleBtn);
+container.appendChild(status);
 document.body.appendChild(container);
 
 type RecorderState = {
   mediaRecorder: MediaRecorder | null;
   audioChunks: Blob[];
+  isRecording: boolean;
 };
 
 const state: RecorderState = {
   mediaRecorder: null,
   audioChunks: [],
+  isRecording: false,
 };
 
 const setStatus = (message: string) => {
   status.textContent = message;
 };
 
+const setIdleAppearance = () => {
+  toggleBtn.textContent = "🎙️ Grabar audio";
+  toggleBtn.style.background = "#2f6fed";
+};
+
+const setRecordingAppearance = () => {
+  toggleBtn.textContent = "⏹️ Detener grabación";
+  toggleBtn.style.background = "#c0292c";
+};
+
 const ensureFrameHeight = () => {
   const height = Math.max(
     document.body.scrollHeight,
     document.documentElement.scrollHeight,
-    320,
+    56,
   );
   setFrameHeight(height);
 };
@@ -119,39 +127,34 @@ async function initRecorder() {
     };
 
     setStatus("Listo para grabar");
+    toggleBtn.disabled = false;
   } catch (error) {
     setStatus(`Error al acceder al micrófono: ${error}`);
+    toggleBtn.disabled = true;
     console.error(error);
   }
-};
+}
 
-startBtn.addEventListener("click", () => {
+setIdleAppearance();
+toggleBtn.disabled = true;
+
+toggleBtn.addEventListener("click", () => {
   if (!state.mediaRecorder) {
     return;
   }
-  state.audioChunks = [];
-  state.mediaRecorder.start();
-  setStatus("Grabando...");
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-  ensureFrameHeight();
-});
-
-stopBtn.addEventListener("click", () => {
-  if (!state.mediaRecorder || state.mediaRecorder.state !== "recording") {
-    return;
+  if (!state.isRecording) {
+    state.audioChunks = [];
+    state.mediaRecorder.start();
+    state.isRecording = true;
+    setRecordingAppearance();
+    setStatus("Grabando...");
+  } else {
+    state.mediaRecorder.stop();
+    state.isRecording = false;
+    setIdleAppearance();
   }
-  state.mediaRecorder.stop();
-  stopBtn.disabled = true;
-  startBtn.disabled = false;
   ensureFrameHeight();
 });
-
-const onRender = () => {
-  ensureFrameHeight();
-  setTimeout(ensureFrameHeight, 250);
-  setComponentValue(null);
-};
 
 window.addEventListener("load", () => {
   startHandshake();
