@@ -1,7 +1,7 @@
-"""SOAP generation service using the Groq API.
+"""SOAP generation service using an abstract AI provider.
 
 Provides SoapResult (dataclass) and SoapGenerator (class) to build prompts,
-call the Groq chat completion endpoint, and parse the response into a
+call an injected AiProvider for chat completion, and parse the response into a
 structured SOAP evolution with clinical justification.
 """
 
@@ -9,14 +9,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from groq import Groq
-
 from services.prompt_builder import build_system_prompt, build_user_prompt
+from services.providers.base import AiProvider
 
 
 @dataclass
 class SoapResult:
-    """Represents the result of a SOAP generation via Groq.
+    """Represents the result of a SOAP generation.
 
     Attributes:
         nueva_evo: The generated clinical evolution text (before the
@@ -31,36 +30,36 @@ class SoapResult:
 
 
 class SoapGenerator:
-    """Coordinates SOAP note generation using the Groq API.
+    """Coordinates SOAP note generation using an injected AiProvider.
 
-    Receives API credentials via dependency injection, builds prompts through
-    PromptBuilder, calls the Groq chat completion endpoint, and parses the
-    response into a SoapResult.
+    Receives an abstract AI provider via dependency injection, builds prompts
+    through PromptBuilder, calls the provider's chat completion, and parses
+    the response into a SoapResult.
 
     Args:
-        api_key: The Groq API key for authentication.
+        provider: An instance satisfying the ``AiProvider`` protocol.
         model: The model identifier to use for chat completions
-            (e.g. from the SOAP_MODEL environment variable).
+            (e.g. from the ``SOAP_MODEL`` environment variable).
 
     """
 
-    def __init__(self, api_key: str, model: str) -> None:
-        """Initialize the SoapGenerator with Groq credentials.
+    def __init__(self, provider: AiProvider, model: str) -> None:
+        """Initialize the SoapGenerator.
 
         Args:
-            api_key: The Groq API key for authentication.
+            provider: An abstract AI provider.
             model: The model identifier to use for chat completions.
 
         """
-        self._client = Groq(api_key=api_key)
+        self._provider = provider
         self._model = model
 
     def generate(self, evolucion_anterior: str, cambios: str) -> SoapResult:
-        """Generate a SOAP evolution using the Groq API.
+        """Generate a SOAP evolution using the injected AiProvider.
 
         Builds system and user prompts via PromptBuilder, sends them to the
-        configured Groq model, splits the response at the clinical
-        justification separator, and returns a structured SoapResult.
+        configured provider, splits the response at the clinical justification
+        separator, and returns a structured SoapResult.
 
         Args:
             evolucion_anterior: The previous day's clinical evolution text.
@@ -71,20 +70,19 @@ class SoapGenerator:
             justification.
 
         Raises:
-            groq.APIError: If the Groq API call fails or returns an error.
+            ProviderError: If the AI provider call fails.
 
         """
         system_prompt = build_system_prompt()
         user_prompt = build_user_prompt(evolucion_anterior, cambios)
-        response = self._client.chat.completions.create(
-            model=self._model,
+        content = self._provider.chat_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            model=self._model,
             temperature=0.1,
         )
-        content: str = response.choices[0].message.content or ""
         partes = content.split("### Justificación Clínica:")
         nueva_evo = partes[0].strip()
         justificacion = partes[1].strip() if len(partes) > 1 else "No se generó justificación."

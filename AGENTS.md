@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
-Current plan: `specs/004-extract-soap-services/plan.md`
-Research: `specs/004-extract-soap-services/research.md`
-Data model: `specs/004-extract-soap-services/data-model.md`
-Contracts: `specs/004-extract-soap-services/contracts/`
-Quickstart: `specs/004-extract-soap-services/quickstart.md`
+Current plan: `specs/005-ai-provider-abstraction/plan.md`
+Research: `specs/005-ai-provider-abstraction/research.md`
+Data model: `specs/005-ai-provider-abstraction/data-model.md`
+Contracts: `specs/005-ai-provider-abstraction/contracts/`
+Quickstart: `specs/005-ai-provider-abstraction/quickstart.md`
 <!-- SPECKIT END -->

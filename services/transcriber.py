@@ -1,3 +1,5 @@
+"""Audio transcription via the OpenRouter API with chunking and retry logic."""
+
 from __future__ import annotations
 
 import base64
@@ -17,6 +19,21 @@ logger.setLevel(logging.INFO)
 
 
 class OpenRouterTranscriber:
+    """Transcribe audio files using the OpenRouter API.
+
+    Splits long audio into chunks, transcodes each chunk to MP3 via
+    ffmpeg, and sends it to the OpenRouter /v1/audio/transcriptions
+    endpoint with automatic retries on transient errors.
+
+    Args:
+        api_key: OpenRouter API key. Falls back to ``OPENROUTER_API_KEY`` env var.
+        model: Model name. Falls back to ``OPENROUTER_MODEL`` env var, then
+            ``openai/whisper-large-v3-turbo``.
+        batch_size: Number of concurrent chunks (reserved for future use).
+        language: Expected language code (default ``es``).
+
+    """
+
     def __init__(
         self,
         api_key: str | None = None,
@@ -24,6 +41,7 @@ class OpenRouterTranscriber:
         batch_size: int = 4,
         language: str = "es",
     ) -> None:
+        """Initialize the transcriber with API key, model, and chunking parameters."""
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         self.model = model or os.environ.get("OPENROUTER_MODEL", "openai/whisper-large-v3-turbo")
         self.batch_size = int(batch_size)
@@ -32,6 +50,20 @@ class OpenRouterTranscriber:
         self.max_chunk_ms = 20_000
 
     def _get_duration_ms(self, file_path: str) -> int:
+        """Return the total duration of an audio file in milliseconds.
+
+        Uses ``ffprobe`` to read the file's duration metadata.
+
+        Args:
+            file_path: Path to the audio file.
+
+        Returns:
+            Duration in milliseconds.
+
+        Raises:
+            RuntimeError: If ffprobe fails or its output cannot be parsed.
+
+        """
         command = [
             "ffprobe",
             "-v",
@@ -52,6 +84,23 @@ class OpenRouterTranscriber:
         return int(duration * 1000)
 
     def _extract_mp3_chunk(self, file_path: str, start_ms: int, duration_ms: int) -> bytes:
+        """Extract a segment of audio as MP3 bytes.
+
+        Uses ``ffmpeg`` to seek to ``start_ms`` and capture ``duration_ms``
+        of audio, transcoded to mono 16 kHz MP3.
+
+        Args:
+            file_path: Path to the source audio file.
+            start_ms: Start offset in milliseconds.
+            duration_ms: Length of the segment in milliseconds.
+
+        Returns:
+            Raw MP3 bytes.
+
+        Raises:
+            RuntimeError: If ffmpeg fails.
+
+        """
         start = start_ms / 1000.0
         duration = duration_ms / 1000.0
         command = [
@@ -83,6 +132,24 @@ class OpenRouterTranscriber:
         return proc.stdout
 
     def _call_api(self, audio_bytes: bytes, audio_format: str = "mp3") -> str:
+        """Send an audio chunk to the OpenRouter transcription API.
+
+        Implements automatic retries with exponential backoff for
+        transient errors (429, 5xx, network timeouts).  Raises
+        immediately on 401 or other 4xx errors.
+
+        Args:
+            audio_bytes: Raw audio data to transcribe.
+            audio_format: MIME format of the audio (default ``mp3``).
+
+        Returns:
+            Transcribed text.
+
+        Raises:
+            RuntimeError: On authentication failure, API errors, or if all
+                retries are exhausted.
+
+        """
         b64 = base64.b64encode(audio_bytes).decode("utf-8")
         payload: dict[str, object] = {
             "model": self.model,
@@ -155,6 +222,20 @@ class OpenRouterTranscriber:
         raise RuntimeError(f"OpenRouter transcription failed after retries. Last error: {last_err}")
 
     def transcribe_file(self, file_path: str) -> str:
+        """Transcribe an audio file by splitting it into chunks.
+
+        Determines the total duration, splits the audio into
+        ``max_chunk_ms``-sized segments, transcodes each to MP3, and
+        sends them sequentially to the OpenRouter API.  Results are
+        joined with spaces.
+
+        Args:
+            file_path: Path to the audio file.
+
+        Returns:
+            Full transcription text.
+
+        """
         duration_ms = self._get_duration_ms(file_path)
         chunks = []
         start_ms = 0

@@ -12,10 +12,7 @@ import streamlit as st
 
 APP_BRAND = "⚡ FAST SOAP IA · Asistente Clínico"
 APP_TITLE = "⚡ FAST SOAP IA · Asistente de Evoluciones Clínicas"
-APP_SUBTITLE = (
-    "Ingrese la evolución anterior y los cambios del turno para generar la "
-    "nota SOAP automáticamente"
-)
+APP_SUBTITLE = "Ingrese la evolución anterior y los cambios del turno para generar la nota SOAP automáticamente"
 APP_BADGE = "Prototipo académico v1.0"
 
 GLOBAL_CSS = """
