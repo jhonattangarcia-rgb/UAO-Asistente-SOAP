@@ -19,6 +19,7 @@ from app_styles import (
 )
 from services import audio_utils
 from services.pdf_generator import generate_pdf
+from services.providers import GroqProvider, ProviderRegistry
 from services.soap_generator import SoapGenerator
 from services.transcriber import OpenRouterTranscriber
 
@@ -30,6 +31,10 @@ load_dotenv(dotenv_path=str(env_path), override=False)
 
 GROQ_API_KEY = os.getenv("API_SECRET_KEY")
 SOAP_MODEL = os.environ.get("SOAP_MODEL")
+
+# Provider registry — set up once at startup
+_provider_registry = ProviderRegistry()
+_provider_registry.register("groq", GroqProvider)
 
 st.set_page_config(page_title="Asistente SOAP UCI", layout="wide")
 inject_global_styles()
@@ -157,6 +162,8 @@ if "nueva_evo" not in st.session_state:
     st.session_state["nueva_evo"] = None
 if "pdf_bytes" not in st.session_state:
     st.session_state["pdf_bytes"] = None
+if "generation_error" not in st.session_state:
+    st.session_state["generation_error"] = None
 
 # --- ACCIÓN DEL BOTÓN ---
 if st.button("⚡ Generar evolución y justificación", type="primary", use_container_width=True):
@@ -171,22 +178,33 @@ if st.button("⚡ Generar evolución y justificación", type="primary", use_cont
             unsafe_allow_html=True,
         )
     else:
-        with st.status("Generando evolución SOAP con justificación clínica...", expanded=True) as status:
-            try:
-                generator = SoapGenerator(api_key=GROQ_API_KEY, model=SOAP_MODEL)
-                result = generator.generate(evo_anterior, cambios_dia)
+        st.session_state["generation_error"] = None
+        try:
+            provider = _provider_registry.resolve()
+            generator = SoapGenerator(provider=provider, model=SOAP_MODEL)
+            result = generator.generate(evo_anterior, cambios_dia)
 
-                st.session_state["justificacion"] = result.justificacion
-                st.session_state["nueva_evo"] = result.nueva_evo
-                st.session_state["pdf_bytes"] = generate_pdf(
-                    evo_anterior, cambios_dia, result.nueva_evo, result.justificacion
-                )
-                status.update(label="Evolución generada", state="complete")
+            st.session_state["justificacion"] = result.justificacion
+            st.session_state["nueva_evo"] = result.nueva_evo
+            st.session_state["pdf_bytes"] = generate_pdf(
+                evo_anterior, cambios_dia, result.nueva_evo, result.justificacion
+            )
 
-            except Exception as e:
-                status.update(state="error")
-                st.markdown(render_status_badge("error", detail=f"Error de API: {str(e)}"), unsafe_allow_html=True)
+        except Exception as e:
+            st.session_state["generation_error"] = str(e)
 
+# --- MOSTRAR ERRORES PERSISTENTES ---
+if st.session_state["generation_error"]:
+    st.markdown(
+        render_status_badge("error", detail=f"Error de generación: {st.session_state['generation_error']}"),
+        unsafe_allow_html=True,
+    )
+    if st.button("Descartar error y reintentar"):
+        st.session_state["generation_error"] = None
+        st.session_state["justificacion"] = None
+        st.session_state["nueva_evo"] = None
+        st.session_state["pdf_bytes"] = None
+        st.rerun()
 # --- MOSTRAR RESULTADOS ---
 if st.session_state["justificacion"]:
     with st.container(border=True):

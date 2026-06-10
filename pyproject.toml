@@ -29,11 +29,10 @@ line-length = 120
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "PL", "D"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D"]
+"tests/**" = ["D", "ARG001", "ARG002", "PLR2004"]
 "__init__.py" = ["D"]
 "app.py" = ["D"]
-"services/audio_utils.py" = ["D"]
-"services/transcriber.py" = ["D"]
+
 
 [tool.ruff.format]
 quote-style = "double"
@@ -50,3 +49,4 @@ exclude = ["app.py"]
 testpaths = ["tests"]
 addopts = "-v --cov=services --cov=app --cov-report=term-missing"
 python_files = ["test_*.py"]
+pythonpath = ["."]

@@ -62,8 +62,5 @@ def build_user_prompt(evolucion_anterior: str, cambios: str) -> str:
         str: The complete user prompt combining input data and business rules.
 
     """
-    prompt = (
-        f"EVOLUCIÓN ANTERIOR:\n{evolucion_anterior}\n\nCAMBIOS DEL DÍA:\n{cambios}\n\n"
-        f"{_PROMPT_REGLAS_VARIABLES}"
-    )
+    prompt = f"EVOLUCIÓN ANTERIOR:\n{evolucion_anterior}\n\nCAMBIOS DEL DÍA:\n{cambios}\n\n{_PROMPT_REGLAS_VARIABLES}"
     return prompt
