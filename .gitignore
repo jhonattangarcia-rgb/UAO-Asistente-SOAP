@@ -5,6 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
+CLAUDE.md
+img/
+.claude/
 
 # Virtual environments
 .venv
