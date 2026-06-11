@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAST SOAP IA · Resultado</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #1a1a2e; }
+
+  .topbar {
+    background: #378ADD;
+    color: white;
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .topbar .badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* PACIENTE ACTIVO */
+  .paciente-activo {
+    background: #EBF3FB;
+    border: 1px solid #b3d4f0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #1F4E79;
+  }
+  .paciente-activo strong { font-weight: 700; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+
+  .card {
+    background: white;
+    border: 1px solid #e0e6ef;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #378ADD;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .card p { font-size: 13px; color: #444; line-height: 1.7; margin-bottom: 6px; }
+
+  .subfield-label { font-size: 12px; font-weight: 600; color: #378ADD; margin-bottom: 6px; }
+  .subfield-value { font-size: 13px; color: #444; margin-bottom: 14px; }
+
+  hr { border: none; border-top: 1px solid #e0e6ef; margin-bottom: 24px; }
+
+  /* RESULTADO */
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .result-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2e7d32;
+  }
+  .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn-copiar {
+    background: #378ADD;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-pdf {
+    background: white;
+    color: #378ADD;
+    border: 1.5px solid #378ADD;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-nueva {
+    background: white;
+    color: #555;
+    border: 1.5px solid #ccc;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-guardar-historial {
+    background: #1F4E79;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
+
+  .nota-card {
+    background: white;
+    border: 1px solid #e0e6ef;
+    border-radius: 10px;
+    padding: 20px;
+    line-height: 1.8;
+  }
+  .nota-card p { font-size: 13px; color: #333; margin-bottom: 10px; }
+  .nota-card strong { color: #1a1a2e; }
+
+  .highlight {
+    background: #fde8e8;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 12px;
+    color: #b71c1c;
+  }
+
+  .cambios-card {
+    background: white;
+    border: 1px solid #e0e6ef;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .cambios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .cambios-title { font-size: 13px; font-weight: 700; color: #c0392b; }
+  .cambios-count {
+    background: #c0392b;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .cambio-item {
+    font-size: 12px;
+    color: #444;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .cambio-item:last-child { border-bottom: none; }
+  .cambio-dot { width: 6px; height: 6px; background: #c0392b; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+  .aviso {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 14px;
+    font-size: 11px;
+    color: #7B6B1A;
+    display: flex;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>⚡ FAST SOAP IA · Asistente Clínico</span>
+  <span class="badge">Prototipo académico v1.0</span>
+</div>
+
+<div class="main">
+
+  <!-- PACIENTE ACTIVO -->
+  <div class="paciente-activo">
+    👤 <span>Paciente: <strong>García, Carlos · CC 1023456789</strong> · UCI · Evolución generada: 11 jun 2026</span>
+  </div>
+
+  <!-- GRID ENTRADA -->
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">1. Evolución del día anterior</div>
+      <p>S: Paciente masculino 65 años, refiere dolor torácico leve.</p>
+      <p>O: TA 130/80, FC 82, Sat 96% AA, T 37.2. Creatinina 1.4.</p>
+      <p>A: IAM anterior en evolución favorable.</p>
+      <p>P: Continuar anticoagulación, control eco mañana.</p>
+    </div>
+    <div class="card">
+      <div class="card-label">2. Cambios del día</div>
+      <div class="subfield-label">Signos vitales</div>
+      <div class="subfield-value">TA 128/78, FC 80, Sat 98% AA, FR 16, Temp 37.0</div>
+      <div class="subfield-label">Otros cambios del turno</div>
+      <div class="subfield-value">Bajé oxígeno, satura mejor. Subí furosemida. Agregué tramadol. Creatinina bajó a 1.2.</div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ENCABEZADO RESULTADO -->
+  <div class="result-header">
+    <div class="result-title">✓ Evolución generada · 11 jun 2026</div>
+    <div class="result-actions">
+      <button class="btn-copiar">📋 Copiar texto</button>
+      <button class="btn-pdf">📄 Exportar PDF</button>
+      <button class="btn-guardar-historial">💾 Guardar en historial</button>
+      <button class="btn-nueva">↩ Nueva evolución</button>
+    </div>
+  </div>
+
+  <!-- RESULTADO + CAMBIOS -->
+  <div class="result-grid">
+    <div class="nota-card">
+      <p><strong>S:</strong> Paciente masculino de 65 años. <span class="highlight">Niega dolor torácico activo</span>, refiere mejoría respecto al día previo. Familiar reporta noche tranquila sin eventos.</p>
+      <p><strong>O:</strong> TA 128/78, FC 80, <span class="highlight">Sat 98% AA sin soporte de oxígeno</span>, FR 16, T 37.0. <span class="highlight">Creatinina 1.2 (mejoría vs 1.4 previo)</span>. <span class="highlight">Edema leve en tobillos bilateral</span>. Ruidos cardiacos rítmicos, sin soplos.</p>
+      <p><strong>A:</strong> IAM anterior en evolución favorable. <span class="highlight">Mejoría progresiva de función renal</span>. <span class="highlight">Edema periférico leve por balance hídrico positivo</span>.</p>
+      <p><strong>P:</strong> Continuar anticoagulación. <span class="highlight">Se suspende soporte de oxígeno por mejoría de saturación</span>. <span class="highlight">Se incrementa furosemida ante edema en tobillos</span>. <span class="highlight">Se agrega tramadol por dolor leve con vigilancia renal</span>. Control ecocardiograma mañana.</p>
+    </div>
+
+    <div>
+      <div class="cambios-card">
+        <div class="cambios-header">
+          <span class="cambios-title">Cambios detectados</span>
+          <span class="cambios-count">5</span>
+        </div>
+        <div class="cambio-item"><div class="cambio-dot"></div>Suspensión de oxígeno suplementario</div>
+        <div class="cambio-item"><div class="cambio-dot"></div>Incremento de furosemida</div>
+        <div class="cambio-item"><div class="cambio-dot"></div>Inicio de tramadol</div>
+        <div class="cambio-item"><div class="cambio-dot"></div>Mejoría creatinina 1.4 → 1.2</div>
+        <div class="cambio-item"><div class="cambio-dot"></div>Edema bilateral en tobillos</div>
+      </div>
+      <div class="aviso">
+        ⚠️ Documento generado por IA. Debe ser revisado y validado por el médico tratante antes de ser firmado en la historia clínica.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
