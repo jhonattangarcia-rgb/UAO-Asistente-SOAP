@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
+import uuid
 from pathlib import Path
 
 TMP_DIR = Path(__file__).resolve().parent.parent / "tmp_audio"
-TMP_WEBM = TMP_DIR / "pending_recording.webm"
 
 
 def ensure_tmp_dir() -> None:
@@ -13,26 +14,32 @@ def ensure_tmp_dir() -> None:
     TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def save_webm_bytes(raw_bytes: bytes) -> None:
-    """Write raw WebM bytes to the pending recording file.
+def save_webm_bytes(raw_bytes: bytes) -> Path:
+    """Write raw WebM bytes to a uniquely-named temporary file.
 
     Args:
         raw_bytes: The audio data to save.
 
+    Returns:
+        Path to the newly written file. Each call creates a distinct
+        file so concurrent sessions don't overwrite each other's audio.
+
     """
     ensure_tmp_dir()
-    TMP_WEBM.write_bytes(raw_bytes)
+    path = TMP_DIR / f"recording_{uuid.uuid4().hex}.webm"
+    path.write_bytes(raw_bytes)
+    return path
 
 
-def clear_tmp_recording() -> None:
-    """Remove the pending recording file if it exists.
+def clear_recording(path: Path) -> None:
+    """Remove a recording file if it exists.
 
     Silently ignores any errors during removal (e.g. permission
     denied) to avoid crashing the UI.
 
+    Args:
+        path: Path to the recording file to remove.
+
     """
-    try:
-        if TMP_WEBM.exists():
-            TMP_WEBM.unlink()
-    except Exception:
-        pass
+    with contextlib.suppress(OSError):
+        path.unlink()

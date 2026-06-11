@@ -26,7 +26,5 @@ def transcriber(mock_api_key: str) -> OpenRouterTranscriber:
 @pytest.fixture
 def tmp_audio_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     aud_dir = tmp_path / "tmp_audio"
-    aud_file = aud_dir / "pending_recording.webm"
     monkeypatch.setattr("services.audio_utils.TMP_DIR", aud_dir)
-    monkeypatch.setattr("services.audio_utils.TMP_WEBM", aud_file)
     return aud_dir
