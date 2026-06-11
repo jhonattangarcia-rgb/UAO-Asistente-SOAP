@@ -25,8 +25,21 @@ GLOBAL_CSS = """
     background-color: #2f6fed;
     color: #ffffff;
     padding: 0.75rem 1.25rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
+    margin: 0;
+    /* Fixed just below Streamlit's own header bar (3.75rem tall) so the
+       app's branded header stays visible while scrolling. The
+       .app-header-spacer below reserves the matching vertical space so
+       content doesn't slide underneath it. */
+    position: fixed;
+    top: 3.75rem;
+    left: 0;
+    right: 0;
+    z-index: 999991;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.app-header-spacer {
+    height: 3.5rem;
 }
 
 .app-header__brand {
@@ -159,12 +172,41 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 0.6rem 0.85rem;
     }
 
+    .app-header-spacer {
+        /* Brand and badge wrap to two lines on narrow screens, so the
+           fixed header is taller here than on desktop. */
+        height: 4.75rem;
+    }
+
     .app-header__brand {
         font-size: 0.95rem;
     }
 
     .app-title {
         font-size: 1.4rem;
+    }
+
+    /* Keep the main action reachable with the thumb: pin it to the
+       bottom of the screen and reserve space so it never covers the
+       results below it. */
+    div[data-testid="stMainBlockContainer"] {
+        padding-bottom: 4.5rem;
+    }
+
+    div.stButton:has(> button[kind="primary"]) {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 0.5rem 0.85rem;
+        background-color: #ffffff;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+        z-index: 999991;
+    }
+
+    div.stButton > button[kind="primary"] {
+        border-radius: 999px;
     }
 }
 """
@@ -191,6 +233,7 @@ def render_header(title: str, subtitle: str, badge_text: str) -> str:
         f'<span class="app-header__brand">{APP_BRAND}</span>'
         f'<span class="badge badge-info">{badge_text}</span>'
         "</div>"
+        '<div class="app-header-spacer"></div>'
         f'<h1 class="app-title">{title}</h1>'
         f'<p class="app-subtitle">{subtitle}</p>'
     )

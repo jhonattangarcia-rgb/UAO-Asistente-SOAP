@@ -21,13 +21,21 @@ const startHandshake = () => {
   setTimeout(setComponentReady, 800);
 };
 
+// Set right after sending a recording to Streamlit so the next render
+// message clears the component value exactly once. Avoids resetting the
+// value (and triggering an extra rerun) on every render message.
+let pendingValueReset = false;
+
 const onMessage = (event: MessageEvent) => {
   if (!event.data || event.data.type !== "streamlit:render") {
     return;
   }
   ensureFrameHeight();
   setTimeout(ensureFrameHeight, 250);
-  setComponentValue(null);
+  if (pendingValueReset) {
+    pendingValueReset = false;
+    setComponentValue(null);
+  }
 };
 
 window.addEventListener("message", onMessage, false);
@@ -71,12 +79,25 @@ type RecorderState = {
   mediaRecorder: MediaRecorder | null;
   audioChunks: Blob[];
   isRecording: boolean;
+  mimeType: string;
 };
 
 const state: RecorderState = {
   mediaRecorder: null,
   audioChunks: [],
   isRecording: false,
+  mimeType: "audio/webm",
+};
+
+// Candidate MIME types in order of preference. Different browsers support
+// different codecs for MediaRecorder (e.g. Safari lacks WebM support).
+const SUPPORTED_MIME_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+
+const getSupportedMimeType = (): string | null => {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) {
+    return null;
+  }
+  return SUPPORTED_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) ?? null;
 };
 
 const setStatus = (message: string) => {
@@ -105,7 +126,14 @@ const ensureFrameHeight = () => {
 async function initRecorder() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    state.mediaRecorder = new MediaRecorder(stream);
+    const mimeType = getSupportedMimeType();
+    if (!mimeType) {
+      setStatus("Tu navegador no soporta la grabación de audio (MediaRecorder).");
+      toggleBtn.disabled = true;
+      return;
+    }
+    state.mimeType = mimeType;
+    state.mediaRecorder = new MediaRecorder(stream, { mimeType });
 
     state.mediaRecorder.ondataavailable = (event: BlobEvent) => {
       if (event.data && event.data.size > 0) {
@@ -114,13 +142,18 @@ async function initRecorder() {
     };
 
     state.mediaRecorder.onstop = () => {
-      const blob = new Blob(state.audioChunks, { type: "audio/webm" });
+      const blob = new Blob(state.audioChunks, { type: state.mimeType });
       state.audioChunks = [];
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         const base64data = result.split(",")[1];
+        if (!base64data) {
+          setStatus("Error: no se pudo procesar el audio grabado.");
+          return;
+        }
         setComponentValue(base64data);
+        pendingValueReset = true;
         setStatus("Grabación lista para transcribir");
       };
       reader.readAsDataURL(blob);

@@ -1,5 +1,4 @@
 import base64
-import contextlib
 import os
 from datetime import datetime
 from pathlib import Path
@@ -51,12 +50,6 @@ try:
 except Exception:
     RECORDER_COMPONENT = None
 
-if "recording_size" not in st.session_state:
-    st.session_state["recording_size"] = 0
-if "last_recording_b64" not in st.session_state:
-    st.session_state["last_recording_b64"] = None
-
-
 # Render recorder if available
 captured_b64 = None
 if RECORDER_COMPONENT:
@@ -67,19 +60,36 @@ if RECORDER_COMPONENT:
         except Exception:
             captured_b64 = None
 
-# Transcription flow: if recorder produced base64, save it and call transcriber
-if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
+# Transcription flow: if the recorder produced a NEW base64 payload (different
+# from the last one we already processed), save it and call the transcriber.
+# Comparing against last_processed_b64 prevents reprocessing the same audio
+# on subsequent reruns while the component's value hasn't been reset yet.
+is_new_recording = (
+    captured_b64
+    and isinstance(captured_b64, str)
+    and captured_b64 != st.session_state.get("last_processed_b64")
+)
+
+if is_new_recording and RECORDER_COMPONENT:
+    st.session_state["last_processed_b64"] = captured_b64
     st.markdown(render_status_badge("transcribing", detail="Audio recibido"), unsafe_allow_html=True)
     try:
+        raw = base64.b64decode(captured_b64)
+    except Exception:
+        raw = None
+
+    if raw:
         try:
-            raw = base64.b64decode(captured_b64)
-        except Exception:
-            raw = None
-        if raw:
-            audio_utils.save_webm_bytes(raw)
+            audio_path = audio_utils.save_webm_bytes(raw)
+        except OSError as exc:
+            st.markdown(
+                render_status_badge("error", detail=f"Error guardando el audio: {exc}"),
+                unsafe_allow_html=True,
+            )
+        else:
             tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
             try:
-                transcript = tr.transcribe_file(str(audio_utils.TMP_WEBM))
+                transcript = tr.transcribe_file(str(audio_path))
             except Exception as e:
                 # Bubble up transcriber errors to the UI for clarity
                 st.markdown(
@@ -88,8 +98,7 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
                 )
                 transcript = None
 
-            with contextlib.suppress(Exception):
-                audio_utils.TMP_WEBM.unlink()
+            audio_utils.clear_recording(audio_path)
 
             # Handle transcription results
             if not transcript:
@@ -116,17 +125,13 @@ if captured_b64 and isinstance(captured_b64, str) and RECORDER_COMPONENT:
                     ),
                     unsafe_allow_html=True,
                 )
+    else:
+        st.markdown(
+            render_status_badge("error", detail="No se pudo decodificar audio de la grabación."),
+            unsafe_allow_html=True,
+        )
 
-            if hasattr(st, "experimental_rerun"):
-                with contextlib.suppress(Exception):
-                    st.experimental_rerun()
-        else:
-            st.markdown(
-                render_status_badge("error", detail="No se pudo decodificar audio de la grabación."),
-                unsafe_allow_html=True,
-            )
-    except Exception as exc:
-        st.markdown(render_status_badge("error", detail=f"Error en la transcripción: {exc}"), unsafe_allow_html=True)
+    st.rerun()
 
 # --- FORMULARIO DE ENTRADA ---
 col1, col2 = st.columns(2)
@@ -172,9 +177,14 @@ if st.button("⚡ Generar evolución y justificación", type="primary", use_cont
             render_status_badge("error", detail="Por favor, llena ambos campos de texto."),
             unsafe_allow_html=True,
         )
-    elif GROQ_API_KEY == "TU_API_KEY_DE_GROQ_AQUI":
+    elif not GROQ_API_KEY or GROQ_API_KEY == "TU_API_KEY_DE_GROQ_AQUI":
         st.markdown(
-            render_status_badge("error", detail="Configura tu API Key de Groq en la línea 8."),
+            render_status_badge("error", detail="Configura API_SECRET_KEY en tu archivo .env."),
+            unsafe_allow_html=True,
+        )
+    elif not SOAP_MODEL:
+        st.markdown(
+            render_status_badge("error", detail="Configura SOAP_MODEL en tu archivo .env."),
             unsafe_allow_html=True,
         )
     else:
