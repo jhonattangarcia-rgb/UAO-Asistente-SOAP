@@ -21,21 +21,19 @@ const startHandshake = () => {
   setTimeout(setComponentReady, 800);
 };
 
-// Set right after sending a recording to Streamlit so the next render
-// message clears the component value exactly once. Avoids resetting the
-// value (and triggering an extra rerun) on every render message.
-let pendingValueReset = false;
-
+// We deliberately never call setComponentValue(null) to "reset" the value
+// after a recording: doing so on the next render message races with the
+// Streamlit rerun that processes the recording (Chrome was fast enough to
+// fire it mid-transcription, aborting that run before it could call
+// st.rerun() to display the result). app.py instead tracks
+// last_processed_b64 in session_state to avoid reprocessing the same
+// recording, so a single rerun per recording is enough.
 const onMessage = (event: MessageEvent) => {
   if (!event.data || event.data.type !== "streamlit:render") {
     return;
   }
   ensureFrameHeight();
   setTimeout(ensureFrameHeight, 250);
-  if (pendingValueReset) {
-    pendingValueReset = false;
-    setComponentValue(null);
-  }
 };
 
 window.addEventListener("message", onMessage, false);
@@ -153,7 +151,6 @@ async function initRecorder() {
           return;
         }
         setComponentValue(base64data);
-        pendingValueReset = true;
         setStatus("Grabación lista para transcribir");
       };
       reader.readAsDataURL(blob);

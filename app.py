@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,13 @@ from services.pdf_generator import generate_pdf
 from services.providers import GroqProvider, ProviderRegistry
 from services.soap_generator import SoapGenerator
 from services.transcriber import OpenRouterTranscriber
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # Load .env located next to this file if present, but do NOT override existing
 # environment variables. This ensures that container/CI provided ENV vars take
@@ -68,6 +76,18 @@ is_new_recording = (
     captured_b64
     and isinstance(captured_b64, str)
     and captured_b64 != st.session_state.get("last_processed_b64")
+)
+
+logger.info(
+    "run state: captured_b64=%s last_processed_b64=%s is_new=%s "
+    "last_transcript=%s consumed=%s",
+    f"len={len(captured_b64)}" if isinstance(captured_b64, str) else captured_b64,
+    f"len={len(st.session_state.get('last_processed_b64') or '')}"
+    if st.session_state.get("last_processed_b64")
+    else None,
+    bool(is_new_recording),
+    bool(st.session_state.get("last_transcript")),
+    st.session_state.get("last_transcript_consumed"),
 )
 
 if is_new_recording and RECORDER_COMPONENT:
@@ -147,6 +167,7 @@ with col2, st.container(border=True):
         # populate the widget-backed session key and mark consumed
         st.session_state["cambios_dia"] = last_transcript
         st.session_state["last_transcript_consumed"] = True
+        logger.info("col2: applied last_transcript (len=%d) into cambios_dia", len(last_transcript))
 
     # Create the text area bound to session_state['cambios_dia'] so it reflects
     # the transcription if we populated it above.
