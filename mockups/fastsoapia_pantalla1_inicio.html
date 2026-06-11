@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAST SOAP IA · Asistente Clínico</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #1a1a2e; }
+
+  .topbar {
+    background: #378ADD;
+    color: white;
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .topbar .badge {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  .page-title { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .page-title span { color: #378ADD; }
+  .page-subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+
+  /* SELECTOR DE HISTORIAL */
+  .historial-section {
+    background: white;
+    border: 1.5px solid #378ADD;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+  }
+  .historial-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #378ADD;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .historial-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .historial-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 180px;
+  }
+  .historial-field label {
+    font-size: 12px;
+    color: #555;
+    font-weight: 500;
+  }
+  .historial-field select,
+  .historial-field input {
+    border: 1px solid #d0d7e3;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #333;
+    background: #fafbfc;
+    outline: none;
+  }
+  .historial-field select:focus,
+  .historial-field input:focus {
+    border-color: #378ADD;
+  }
+  .btn-cargar {
+    background: #378ADD;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .historial-hint {
+    font-size: 11px;
+    color: #888;
+    margin-top: 8px;
+  }
+
+  /* GRID PRINCIPAL */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+  .card {
+    background: white;
+    border: 1px solid #e0e6ef;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #378ADD;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .card textarea {
+    width: 100%;
+    border: 1px solid #e0e6ef;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 13px;
+    color: #555;
+    resize: none;
+    height: 180px;
+    background: #fafbfc;
+    font-family: inherit;
+    outline: none;
+  }
+  .card textarea:focus { border-color: #378ADD; }
+
+  .subfield { margin-bottom: 14px; }
+  .subfield-label { font-size: 12px; font-weight: 600; color: #378ADD; margin-bottom: 6px; }
+  .subfield input {
+    width: 100%;
+    border: 1px solid #e0e6ef;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #555;
+    background: #fafbfc;
+    outline: none;
+    font-family: inherit;
+  }
+  .subfield input:focus { border-color: #378ADD; }
+  .subfield textarea {
+    width: 100%;
+    border: 1px solid #e0e6ef;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #555;
+    resize: none;
+    height: 100px;
+    background: #fafbfc;
+    font-family: inherit;
+    outline: none;
+  }
+  .subfield textarea:focus { border-color: #378ADD; }
+
+  /* BARRA DE AUDIO */
+  .audio-bar {
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .audio-controls { display: flex; gap: 8px; }
+  .btn-start {
+    background: #378ADD;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-stop {
+    background: #444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .audio-hint { color: #aaa; font-size: 12px; flex: 1; }
+  .audio-target {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    font-size: 12px;
+  }
+  .audio-target select {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 12px;
+    outline: none;
+  }
+
+  /* BOTÓN GENERAR */
+  .btn-generar {
+    width: 100%;
+    background: #378ADD;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>⚡ FAST SOAP IA · Asistente Clínico</span>
+  <span class="badge">Prototipo académico v1.0</span>
+</div>
+
+<div class="main">
+  <div class="page-title">⚡ FAST SOAP IA · <span>Asistente de Evoluciones Clínicas</span></div>
+  <div class="page-subtitle">Ingrese la evolución anterior y los cambios del turno para generar la nota SOAP automáticamente</div>
+
+  <!-- SELECTOR DE HISTORIAL CLÍNICO -->
+  <div class="historial-section">
+    <div class="historial-label">0. Selección de historial clínico</div>
+    <div class="historial-row">
+      <div class="historial-field">
+        <label>Paciente</label>
+        <select>
+          <option value="">— Seleccione un paciente —</option>
+          <option>García, Carlos · CC 1023456789</option>
+          <option>Martínez, Ana · CC 52345678</option>
+          <option>López, Pedro · CC 98765432</option>
+        </select>
+      </div>
+      <div class="historial-field">
+        <label>Fecha de evolución a cargar</label>
+        <input type="date" value="2026-06-10">
+      </div>
+      <div class="historial-field" style="max-width:160px;">
+        <label>Servicio</label>
+        <select>
+          <option>UCI</option>
+          <option>Hospitalización</option>
+          <option>Urgencias</option>
+        </select>
+      </div>
+      <button class="btn-cargar">Cargar evolución anterior</button>
+    </div>
+    <div class="historial-hint">Al cargar, el campo "Evolución del día anterior" se completará automáticamente con la nota registrada.</div>
+  </div>
+
+  <!-- GRID FORMULARIO -->
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">1. Evolución del día anterior</div>
+      <textarea placeholder="Pegue aquí el texto de la evolución del día anterior, o cargue desde el historial clínico..."></textarea>
+    </div>
+    <div class="card">
+      <div class="card-label">2. Cambios del día</div>
+      <div class="subfield">
+        <div class="subfield-label">Signos vitales</div>
+        <input type="text" placeholder="Ej: TA 120/80, FC 82, FR 18, Sat 97%, Temp 37.2">
+      </div>
+      <div class="subfield">
+        <div class="subfield-label">Otros cambios del turno</div>
+        <textarea placeholder="Escriba en lenguaje libre los cambios clínicos del turno..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- BARRA DE AUDIO -->
+  <div class="audio-bar">
+    <div class="audio-controls">
+      <button class="btn-start">▶ Start</button>
+      <button class="btn-stop">■ Stop</button>
+    </div>
+    <div class="audio-target">
+      <span>Dictar en:</span>
+      <select>
+        <option>Cambios del turno</option>
+        <option>Signos vitales</option>
+        <option>Evolución anterior</option>
+      </select>
+    </div>
+    <div class="audio-hint">🎙 Haga clic en Start para dictar los cambios por voz</div>
+  </div>
+
+  <!-- BOTÓN GENERAR -->
+  <button class="btn-generar">
+    <span>⚡ Generar evolución y justificación</span>
+    <span>↓</span>
+  </button>
+</div>
+
+</body>
+</html>
