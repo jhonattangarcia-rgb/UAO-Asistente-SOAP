@@ -30,6 +30,12 @@
       "sourceType": "github",
       "skillPath": "skills/solid/SKILL.md",
       "computedHash": "fd066a27d0d3e2dff7e987b49a4a3b936049abb40b292d1e96df4c3990209f77"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "3639bed1f40b3fbadae79fee631c42c89b2d1f5c30b05d5aa3cca06422a6bbbc"
     }
   }
 }
