@@ -138,3 +138,74 @@ class TestServicioPersistenciaSOAPObtenerPorPaciente:
         )
         assert len(page2["evoluciones"]) == 1
         assert page2["evoluciones"][0]["id"] == 1  # la primera, ahora en página 2
+
+
+class TestServicioPersistenciaSOAPObtenerAnterior:
+    """US2 (ext) — Consultar evolución anterior de un paciente."""
+
+    @pytest.fixture
+    def repo(self) -> MockRepositorioEvoluciones:
+        return MockRepositorioEvoluciones()
+
+    @pytest.fixture
+    def service(
+        self,
+        repo: MockRepositorioEvoluciones,
+    ) -> ServicioPersistenciaSOAP:
+        return ServicioPersistenciaSOAP(repo)
+
+    def test_con_dos_evoluciones_retorna_mas_reciente(
+        self,
+        repo: MockRepositorioEvoluciones,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        repo.guardar(patient_id="pac-001", soap="S: Primera.\nO: Normal.\nA: Bien.\nP: Seguir.")
+        repo.guardar(patient_id="pac-001", soap="S: Segunda.\nO: Normal.\nA: Bien.\nP: Seguir.")
+        result = service.obtener_evolucion_anterior(patient_id="pac-001")
+        assert result["evolucion"] is not None
+        assert result["evolucion"]["id"] == 2  # la más reciente
+        assert "encontrada" in result["mensaje"].lower()
+
+    def test_con_una_evolucion_retorna_la_unica(
+        self,
+        repo: MockRepositorioEvoluciones,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        repo.guardar(patient_id="pac-001", soap="S: Unica.\nO: Normal.\nA: Bien.\nP: Seguir.")
+        result = service.obtener_evolucion_anterior(patient_id="pac-001")
+        assert result["evolucion"] is not None
+        assert result["evolucion"]["id"] == 1
+        assert "encontrada" in result["mensaje"].lower()
+
+    def test_sin_evoluciones_retorna_none(
+        self,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        result = service.obtener_evolucion_anterior(patient_id="pac-999")
+        assert result["evolucion"] is None
+        assert "no hay" in result["mensaje"].lower()
+
+    def test_patient_id_vacio_rechaza(
+        self,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        with pytest.raises(ValidationError) as exc:
+            service.obtener_evolucion_anterior(patient_id="")
+        assert "vacío" in str(exc.value)
+
+    def test_patient_id_invalido_rechaza(
+        self,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        with pytest.raises(ValidationError) as exc:
+            service.obtener_evolucion_anterior(patient_id="invalid@#$")
+        assert "solo puede contener" in str(exc.value)
+
+    def test_conexion_bd_falla_lanza_error(
+        self,
+        repo: MockRepositorioEvoluciones,
+        service: ServicioPersistenciaSOAP,
+    ) -> None:
+        repo.fail_next_call()
+        with pytest.raises(ConnectionError):
+            service.obtener_evolucion_anterior(patient_id="pac-001")

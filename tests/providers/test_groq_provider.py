@@ -52,7 +52,7 @@ class TestGroqProvider:
     def test_chat_completion_api_error(self, mock_groq_client: MagicMock) -> None:
         request = httpx.Request("POST", "https://api.groq.com/v1/chat/completions")
         api_error = APIError("Rate limit exceeded", request=request, body={})
-        api_error.status_code = 429  # some groq versions set status_code on the instance
+        api_error.status_code = 429  # type: ignore[attr-defined]
         mock_groq_client.chat.completions.create.side_effect = api_error
 
         provider = GroqProvider(api_key="test-key", client=mock_groq_client)

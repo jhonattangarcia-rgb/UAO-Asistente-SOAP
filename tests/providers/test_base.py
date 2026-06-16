@@ -39,7 +39,7 @@ class TestAiProviderProtocol:
         class ValidProvider:
             def chat_completion(
                 self,
-                messages: list[dict],
+                messages: list[dict[str, str]],
                 model: str,
                 temperature: float = 0.1,
             ) -> str:

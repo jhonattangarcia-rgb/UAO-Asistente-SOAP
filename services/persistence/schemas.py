@@ -43,3 +43,16 @@ class ConsultaResponse(TypedDict):
 
     evoluciones: list[EvolucionSOAP]
     cursor: int | None
+
+
+class EvolucionAnteriorResponse(TypedDict):
+    """Response for the 'previous evolution' query.
+
+    Attributes:
+        evolucion: The penultimate evolution found, or None if none exists.
+        mensaje: Descriptive message about the result.
+
+    """
+
+    evolucion: EvolucionSOAP | None
+    mensaje: str
