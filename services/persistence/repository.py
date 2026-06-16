@@ -7,7 +7,6 @@ via Config.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, cast
 
 from supabase import Client as SupabaseClient
@@ -29,6 +28,7 @@ class RepositorioSupabase:
         Args:
             url: Supabase project URL (overrides env var).
             key: Supabase service-role key (overrides env var).
+
         """
         self._config = Config()
         self._client: SupabaseClient = create_client(
@@ -48,6 +48,7 @@ class RepositorioSupabase:
 
         Raises:
             ConnectionError: If the insert fails or DB is unavailable.
+
         """
         data: dict[str, str] = {
             "patient_id": patient_id,
@@ -77,6 +78,7 @@ class RepositorioSupabase:
 
         Returns:
             List of EvolucionSOAP ordered by fecha_creacion descending.
+
         """
         query = (
             self._client.table("evoluciones_soap")
@@ -104,6 +106,38 @@ class RepositorioSupabase:
             for row in rows
         ]
 
+    def obtener_anterior(self, patient_id: str) -> EvolucionSOAP | None:
+        """Return the immediately previous (second-to-last) evolution.
+
+        Uses OFFSET 1 LIMIT 1 via PostgREST's Range header to skip
+        the most recent record and return the penultimate one.
+
+        Args:
+            patient_id: Unique patient identifier.
+
+        Returns:
+            The penultimate evolution, or None if fewer than 2 records.
+
+        """
+        query = (
+            self._client.table("evoluciones_soap")
+            .select("id, patient_id, fecha_creacion, soap_result")
+            .eq("patient_id", patient_id)
+            .order("fecha_creacion", desc=True)
+            .order("id", desc=True)
+            .limit(1)
+        )
+        result = query.execute()
+        if not result.data:
+            return None
+        row: dict[str, Any] = cast("dict[str, Any]", result.data[0])
+        return EvolucionSOAP(
+            id=int(row["id"]),
+            patient_id=str(row["patient_id"]),
+            fecha_creacion=row["fecha_creacion"],
+            soap_result=str(row["soap_result"]),
+        )
+
     def _fetch_cursor_record(self, cursor: int) -> dict[str, Any] | None:
         """Retrieve the fecha_creacion and id for a given cursor record.
 
@@ -112,13 +146,10 @@ class RepositorioSupabase:
 
         Returns:
             A dict with "fecha_creacion" and "id" keys, or None if not found.
+
         """
         record_result = (
-            self._client.table("evoluciones_soap")
-            .select("fecha_creacion, id")
-            .eq("id", cursor)
-            .limit(1)
-            .execute()
+            self._client.table("evoluciones_soap").select("fecha_creacion, id").eq("id", cursor).limit(1).execute()
         )
         if record_result.data:
             return cast("dict[str, Any]", record_result.data[0])

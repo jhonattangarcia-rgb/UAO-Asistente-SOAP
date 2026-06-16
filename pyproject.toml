@@ -28,6 +28,10 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "PL", "D"]
+ignore = [
+    "D203",  # Evita el conflicto con D211 (línea en blanco en clases)
+    "D213",  # Evita el conflicto con D212 (multi-line docstring)
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D", "ARG001", "ARG002", "PLR2004"]

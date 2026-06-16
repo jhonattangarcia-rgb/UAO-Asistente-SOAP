@@ -29,7 +29,7 @@ class MockProvider:
 
     def chat_completion(
         self,
-        messages: list[dict],  # noqa: ARG002
+        messages: list[dict[str, str]],  # noqa: ARG002
         model: str,  # noqa: ARG002
         temperature: float = 0.1,  # noqa: ARG002
     ) -> str:
