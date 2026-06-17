@@ -3,6 +3,10 @@
 
 This repository runs locally and provides a Streamlit-based UI for audio/text input and transcription. The following instructions explain how to build and run the project inside a Docker container locally.
 
+## Integración de historial clínico (Supabase)
+
+El módulo "0. Selección de historial clínico" conecta la UI con la base de datos Supabase (tabla `evoluciones_soap`): el médico busca un paciente por ID (ej. `PAC-001`), carga su evolución anterior desde el historial, genera la nueva evolución y la guarda nuevamente en la base —previa ventana de confirmación que recuerda que el contenido es generado por IA y debe validarse—. La vista de resultados muestra los cambios como control de cambios (rojo = eliminado, verde = agregado). Requiere las variables de entorno `SUPABASE_URL` y `SUPABASE_SERVICE_KEY` en `.env` (ver `.env.example`).
+
 Prerequisites
 
 - Docker installed and running on your machine

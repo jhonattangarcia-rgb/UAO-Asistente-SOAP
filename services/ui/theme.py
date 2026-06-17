@@ -1,19 +1,13 @@
-"""Visual theme helpers for the Streamlit presentation layer.
+"""Global CSS theme for the Streamlit presentation layer.
 
-This module is purely presentational: it owns the CSS injected into the
-page and small HTML-rendering helpers (header, badges, status indicators)
-used by ``app.py``. It contains no business logic and no dependency on
-``services/``.
+Owns the single CSS blob injected into the page and the helper that
+injects it. No business logic and no dependency on the rest of
+``services/`` beyond Streamlit itself.
 """
 
 from __future__ import annotations
 
 import streamlit as st
-
-APP_BRAND = "⚡ FAST SOAP IA · Asistente Clínico"
-APP_TITLE = "⚡ FAST SOAP IA · Asistente de Evoluciones Clínicas"
-APP_SUBTITLE = "Ingrese la evolución anterior y los cambios del turno para generar la nota SOAP automáticamente"
-APP_BADGE = "Prototipo académico v1.0"
 
 GLOBAL_CSS = """
 .app-header {
@@ -148,6 +142,71 @@ div.stButton > button[kind="primary"] {
     font-weight: 700;
 }
 
+/* Change-tracking (diff) view: red = deleted, green = inserted */
+.diff-view {
+    border: 1px solid #e1e6ef;
+    border-radius: 0.5rem;
+    padding: 1rem 1.15rem;
+    background-color: #ffffff;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+}
+
+.diff-ins {
+    background-color: #e6f7ec;
+    color: #1a7f3c;
+    text-decoration: none;
+    border-radius: 3px;
+    padding: 0 1px;
+}
+
+.diff-del {
+    background-color: #fdecec;
+    color: #c0292c;
+    text-decoration: line-through;
+    border-radius: 3px;
+    padding: 0 1px;
+}
+
+/* Git-style line-level diff: stacked red/green blocks, easy to validate */
+.diff-line {
+    padding: 0.2rem 0.65rem;
+    margin: 1px 0;
+    border-left: 3px solid transparent;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.diff-line-ins {
+    background-color: #e6f7ec;
+    border-left-color: #1a7f3c;
+    color: #14532d;
+}
+
+.diff-line-ins::before {
+    content: "+ ";
+    color: #1a7f3c;
+    font-weight: 700;
+}
+
+.diff-line-del {
+    background-color: #fdecec;
+    border-left-color: #c0292c;
+    color: #9b2c2c;
+    text-decoration: line-through;
+}
+
+.diff-line-del::before {
+    content: "− ";
+    color: #c0292c;
+    font-weight: 700;
+    text-decoration: none;
+}
+
 /* Make the two side-by-side input panels match in height on desktop */
 div[data-testid="stHorizontalBlock"] {
     align-items: stretch;
@@ -211,46 +270,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 }
 """
 
-_STATUS_LABELS: dict[str, str] = {
-    "idle": "⚪ En espera",
-    "recording": "🔴 Grabando",
-    "transcribing": "🟠 Transcribiendo audio",
-    "generating": "🔵 Generando evolución",
-    "done": "🟢 Completado",
-    "error": "⚠️ Error",
-}
-
 
 def inject_global_styles() -> None:
     """Inject the shared CSS for the redesigned UI into the page."""
     st.markdown(f"<style>{GLOBAL_CSS}</style>", unsafe_allow_html=True)
-
-
-def render_header(title: str, subtitle: str, badge_text: str) -> str:
-    """Render the brand header bar plus the page title/subtitle as HTML."""
-    return (
-        '<div class="app-header">'
-        f'<span class="app-header__brand">{APP_BRAND}</span>'
-        f'<span class="badge badge-info">{badge_text}</span>'
-        "</div>"
-        '<div class="app-header-spacer"></div>'
-        f'<h1 class="app-title">{title}</h1>'
-        f'<p class="app-subtitle">{subtitle}</p>'
-    )
-
-
-def render_badge(text: str, variant: str = "info") -> str:
-    """Render a small rounded badge as HTML."""
-    return f'<span class="badge badge-{variant}">{text}</span>'
-
-
-def render_status_badge(state: str, detail: str = "") -> str:
-    """Render a status badge for the given UI state.
-
-    Falls back to the ``idle`` state for unknown values of ``state``.
-    """
-    label = _STATUS_LABELS.get(state)
-    css_state = state if label is not None else "idle"
-    label = label or _STATUS_LABELS["idle"]
-    text = f"{label} · {detail}" if detail else label
-    return f'<span class="status-badge status-{css_state}">{text}</span>'

@@ -8,6 +8,7 @@ wheels/
 CLAUDE.md
 img/
 .claude/
+notas_spec_nuevo/
 
 # Virtual environments
 .venv
