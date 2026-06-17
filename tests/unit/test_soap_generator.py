@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from services.soap_generator import SoapGenerator, SoapResult
-
 from tests.providers.mock_provider import MockProvider
 
 

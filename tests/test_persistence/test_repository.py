@@ -16,6 +16,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+
 from services.persistence.repository import RepositorioSupabase
 
 # --- Constantes de prueba ---------------------------------------------------

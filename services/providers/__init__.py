@@ -26,7 +26,7 @@ that implements the ``AiProvider`` protocol, then register it:
 
 from __future__ import annotations
 
-from services.providers.base import AiProvider, ProviderError
+from services.providers.base import AiProvider, ProviderError, TranscriptionProvider
 from services.providers.groq_provider import GroqProvider
 from services.providers.registry import ProviderRegistry
 
@@ -35,4 +35,5 @@ __all__ = [
     "GroqProvider",
     "ProviderError",
     "ProviderRegistry",
+    "TranscriptionProvider",
 ]

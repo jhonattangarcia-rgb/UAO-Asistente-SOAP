@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pytest
+
 from services.persistence.service import (
     ServicioPersistenciaSOAP,
     ValidationError,
 )
-
 from tests.test_persistence.conftest import MockRepositorioEvoluciones
 
 

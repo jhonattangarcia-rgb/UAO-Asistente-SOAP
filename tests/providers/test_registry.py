@@ -6,6 +6,7 @@ import os
 from unittest.mock import patch
 
 import pytest
+
 from services.providers.registry import ProviderRegistry
 
 
