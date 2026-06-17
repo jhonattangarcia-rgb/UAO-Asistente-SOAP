@@ -24,13 +24,23 @@ class MockRepositorioEvoluciones:
             raise ConnectionError(msg)
         record = EvolucionSOAP(
             id=self._next_id,
-            patient_id=patient_id,
+            patient_id=patient_id.upper(),
             fecha_creacion=datetime.now(UTC),
             soap_result=soap,
         )
         self._store.insert(0, record)
         self._next_id += 1
         return record["id"]
+
+    def obtener_anterior(self, patient_id: str) -> EvolucionSOAP | None:
+        if self._should_fail:
+            self._should_fail = False
+            msg = "Base de datos no disponible."
+            raise ConnectionError(msg)
+        records = [r for r in self._store if r["patient_id"] == patient_id.upper()]
+        if not records:
+            return None
+        return records[0]
 
     def obtener_por_paciente(
         self,
@@ -39,7 +49,7 @@ class MockRepositorioEvoluciones:
         cursor: int | None = None,
         limit: int = 50,
     ) -> list[EvolucionSOAP]:
-        filtered = [r for r in self._store if r["patient_id"] == patient_id]
+        filtered = [r for r in self._store if r["patient_id"] == patient_id.upper()]
         if cursor is not None:
             cursor_idx = next(
                 (i for i, r in enumerate(filtered) if r["id"] == cursor),

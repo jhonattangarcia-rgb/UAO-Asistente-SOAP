@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
-Current plan: `specs/006-soap-persistence-service/plan.md`
-Research: `specs/006-soap-persistence-service/research.md`
-Data model: `specs/006-soap-persistence-service/data-model.md`
-Contracts: `specs/006-soap-persistence-service/contracts/`
-Quickstart: `specs/006-soap-persistence-service/quickstart.md`
+Current plan: `specs/007-previous-evolution-query/plan.md`
+Research: `specs/007-previous-evolution-query/research.md`
+Data model: `specs/007-previous-evolution-query/data-model.md`
+Contracts: `specs/007-previous-evolution-query/contracts/`
+Quickstart: `specs/007-previous-evolution-query/quickstart.md`
 <!-- SPECKIT END -->

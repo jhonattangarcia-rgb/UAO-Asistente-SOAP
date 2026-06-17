@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from unittest.mock import Mock, patch
 
 import pytest
@@ -125,6 +126,7 @@ class TestCallApi:
         ):
             transcriber._call_api(b"audio data")
 
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": ""})
     def test_no_api_key(self) -> None:
         t = OpenRouterTranscriber(api_key=None)
         with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY not provided"):

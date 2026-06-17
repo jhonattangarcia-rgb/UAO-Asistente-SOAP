@@ -36,6 +36,24 @@ class RepositorioEvoluciones(Protocol):
 
         """
 
+    def obtener_anterior(self, patient_id: str) -> EvolucionSOAP | None:
+        """Return the immediately previous (second-to-last) evolution.
+
+        The previous evolution is the second most recent record in
+        descending chronological order. Returns None if the patient
+        has fewer than 2 evolutions.
+
+        Args:
+            patient_id: Unique patient identifier.
+
+        Returns:
+            The penultimate evolution, or None if not enough history.
+
+        Raises:
+            ConnectionError: If the database is unavailable.
+
+        """
+
     def obtener_por_paciente(
         self,
         patient_id: str,

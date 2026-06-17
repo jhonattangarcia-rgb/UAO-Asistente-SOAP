@@ -10,7 +10,11 @@ import logging
 import re
 
 from services.persistence.interfaces import RepositorioEvoluciones
-from services.persistence.schemas import ConsultaResponse, GuardarResponse
+from services.persistence.schemas import (
+    ConsultaResponse,
+    EvolucionAnteriorResponse,
+    GuardarResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +139,66 @@ class ServicioPersistenciaSOAP:
             cursor=next_cursor,
         )
 
+    def obtener_evolucion_anterior(
+        self,
+        patient_id: str,
+    ) -> EvolucionAnteriorResponse:
+        """Retrieve the immediately previous evolution for a patient.
+
+        Args:
+            patient_id: Unique patient identifier.
+
+        Returns:
+            An EvolucionAnteriorResponse with the penultimate evolution
+            (or None) and a descriptive message.
+
+        Raises:
+            ValidationError: If patient_id is empty or invalid.
+            ConnectionError: If the database is unavailable.
+
+        """
+        logger.info(
+            "Consultando evolución anterior para paciente: %s",
+            patient_id,
+        )
+        if not patient_id or not patient_id.strip():
+            raise ValidationError(
+                "El identificador del paciente no puede estar vacío.",
+            )
+        if not ServicioPersistenciaSOAP._PATIENT_ID_PATTERN.match(patient_id):
+            raise ValidationError(
+                "El identificador del paciente solo puede contener letras, números y guiones.",
+            )
+        try:
+            patient_id = patient_id.upper()
+            evolucion = self._repositorio.obtener_anterior(patient_id)
+        except ConnectionError:
+            logger.exception(
+                "Error de conexión al consultar evolución anterior para paciente: %s",
+                patient_id,
+            )
+            raise
+
+        if evolucion is None:
+            logger.info(
+                "No hay evolución anterior para paciente: %s",
+                patient_id,
+            )
+            return EvolucionAnteriorResponse(
+                evolucion=None,
+                mensaje="No hay evolución anterior para este paciente",
+            )
+
+        logger.info(
+            "Evolución anterior encontrada para paciente: %s (id=%d)",
+            patient_id,
+            evolucion["id"],
+        )
+        return EvolucionAnteriorResponse(
+            evolucion=evolucion,
+            mensaje="Evolución anterior encontrada",
+        )
+
     @staticmethod
     def _validar_entrada(patient_id: str, soap: str) -> None:
         """Validate patient_id and soap content against business rules.
@@ -153,20 +217,17 @@ class ServicioPersistenciaSOAP:
             errors.append("El identificador del paciente no puede estar vacío.")
         elif not ServicioPersistenciaSOAP._PATIENT_ID_PATTERN.match(patient_id):
             errors.append(
-                "El identificador del paciente solo puede contener "
-                "letras, números y guiones.",
+                "El identificador del paciente solo puede contener letras, números y guiones.",
             )
 
         soap_stripped = soap.strip() if soap else ""
         if len(soap_stripped) < ServicioPersistenciaSOAP._SOAP_MIN_LENGTH:
             errors.append(
-                f"El contenido SOAP debe tener al menos "
-                f"{ServicioPersistenciaSOAP._SOAP_MIN_LENGTH} caracteres.",
+                f"El contenido SOAP debe tener al menos {ServicioPersistenciaSOAP._SOAP_MIN_LENGTH} caracteres.",
             )
         if len(soap_stripped) > ServicioPersistenciaSOAP._SOAP_MAX_LENGTH:
             errors.append(
-                f"El contenido SOAP no puede exceder "
-                f"{ServicioPersistenciaSOAP._SOAP_MAX_LENGTH} caracteres.",
+                f"El contenido SOAP no puede exceder {ServicioPersistenciaSOAP._SOAP_MAX_LENGTH} caracteres.",
             )
 
         if errors:
