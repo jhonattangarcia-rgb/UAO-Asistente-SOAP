@@ -10,9 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from services.transcriber import OpenRouterTranscriber
 
+from services.transcriber import OpenRouterTranscriber
 from tests.providers.mock_provider import MockProvider
+from tests.providers.mock_transcription import MockTranscriptionProvider
 
 
 @pytest.fixture
@@ -22,15 +23,15 @@ def mock_provider() -> MockProvider:
 
 
 @pytest.fixture
-def mock_api_key() -> str:
-    """Return a fake API key for tests that do not call a real service."""
-    return "test-api-key-12345"
+def mock_transcription_provider() -> MockTranscriptionProvider:
+    """Return a MockTranscriptionProvider configured with a fixed response string."""
+    return MockTranscriptionProvider(response="texto simulado")
 
 
 @pytest.fixture
-def transcriber(mock_api_key: str) -> OpenRouterTranscriber:
-    """Return an OpenRouterTranscriber initialized with a fake API key."""
-    return OpenRouterTranscriber(api_key=mock_api_key)
+def transcriber(mock_transcription_provider: MockTranscriptionProvider) -> OpenRouterTranscriber:
+    """Return an OpenRouterTranscriber with a mock provider injected."""
+    return OpenRouterTranscriber(provider=mock_transcription_provider)
 
 
 @pytest.fixture

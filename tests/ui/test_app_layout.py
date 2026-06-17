@@ -61,9 +61,7 @@ def _index_of_text_area_columns_block(children: list[object]) -> int:
         if type(child).__name__ != "Block":
             continue
         columns = list(getattr(child, "children", {}).values())
-        if len(columns) != _EXPECTED_TEXT_AREA_COUNT or not all(
-            type(col).__name__ == "Column" for col in columns
-        ):
+        if len(columns) != _EXPECTED_TEXT_AREA_COUNT or not all(type(col).__name__ == "Column" for col in columns):
             continue
         text_areas = sum(_count_text_areas(col) for col in columns)
         if text_areas == _EXPECTED_TEXT_AREA_COUNT:

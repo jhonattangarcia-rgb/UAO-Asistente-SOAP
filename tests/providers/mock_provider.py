@@ -70,6 +70,4 @@ def _assert_is_ai_provider(instance: object) -> None:
         AssertionError: If the object does not satisfy the protocol.
 
     """
-    assert isinstance(instance, AiProvider), (
-        f"{type(instance).__name__} does not satisfy the AiProvider protocol"
-    )
+    assert isinstance(instance, AiProvider), f"{type(instance).__name__} does not satisfy the AiProvider protocol"

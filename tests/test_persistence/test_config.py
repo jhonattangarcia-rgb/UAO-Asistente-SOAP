@@ -12,6 +12,7 @@ sistema de archivos ni servicios externos.
 from __future__ import annotations
 
 import pytest
+
 from services.persistence.config import Config, ConfigError
 
 # --- Constantes de prueba ---------------------------------------------------

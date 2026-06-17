@@ -79,3 +79,37 @@ class AiProvider(Protocol):
 
         """
         ...
+
+
+@runtime_checkable
+class TranscriptionProvider(Protocol):
+    """Contract for audio transcription providers.
+
+    Every concrete transcription provider (OpenRouterTranscriptionProvider,
+    MockTranscriptionProvider, etc.) must satisfy this protocol.
+
+    Implementations MUST raise ``ProviderError`` on any API or network failure.
+    """
+
+    def transcribe(
+        self,
+        audio_bytes: bytes,
+        *,
+        language: str = "es",
+        audio_format: str = "mp3",
+    ) -> str:
+        """Transcribe audio bytes to text.
+
+        Args:
+            audio_bytes: Raw audio data to transcribe.
+            language: Expected language ISO 639-1 code (default ``"es"``).
+            audio_format: MIME format of the audio (default ``"mp3"``).
+
+        Returns:
+            Transcribed text string.
+
+        Raises:
+            ProviderError: On any API or network failure.
+
+        """
+        ...

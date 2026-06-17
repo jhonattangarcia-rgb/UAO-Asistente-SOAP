@@ -14,6 +14,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, call
 
 import pytest
+
 from services.persistence.schemas import EvolucionSOAP
 from services.persistence.service import ServicioPersistenciaSOAP, ValidationError
 
@@ -32,7 +33,7 @@ SOAP_MINIMO = "S:ok O:ok."  # exactamente 10 caracteres
 # --- Factories ----------------------------------------------------------------
 
 
-def _mock_repo(guardar_id: int = 1, evoluciones: list | None = None) -> MagicMock:
+def _mock_repo(guardar_id: int = 1, evoluciones: list[EvolucionSOAP] | None = None) -> MagicMock:
     """Crear un mock que satisface el protocolo RepositorioEvoluciones."""
     repo = MagicMock()
     repo.guardar.return_value = guardar_id

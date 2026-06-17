@@ -14,6 +14,7 @@ from services.pdf_generator import generate_pdf
 from services.persistence.repository import RepositorioSupabase
 from services.persistence.service import ServicioPersistenciaSOAP, ValidationError
 from services.providers import GroqProvider, ProviderRegistry
+from services.providers.openrouter_transcription import OpenRouterTranscriptionProvider
 from services.soap_generator import SoapGenerator
 from services.text_diff import compute_line_diff, line_diff_to_html
 from services.transcriber import OpenRouterTranscriber
@@ -242,9 +243,7 @@ if RECORDER_COMPONENT:
 # Transcription flow: if the recorder produced a NEW base64 payload (different
 # from the last one we already processed), save it and call the transcriber.
 is_new_recording = (
-    captured_b64
-    and isinstance(captured_b64, str)
-    and captured_b64 != st.session_state.get("last_processed_b64")
+    captured_b64 and isinstance(captured_b64, str) and captured_b64 != st.session_state.get("last_processed_b64")
 )
 
 if is_new_recording and RECORDER_COMPONENT:
@@ -267,7 +266,8 @@ if is_new_recording and RECORDER_COMPONENT:
             # Duración del audio para el feedback (antes de borrar el temporal).
             st.session_state["audio_duration_s"] = audio_utils.get_audio_duration_seconds(audio_path)
 
-            tr = OpenRouterTranscriber(api_key=os.getenv("OPENROUTER_API_KEY"))
+            provider = OpenRouterTranscriptionProvider(api_key=os.getenv("OPENROUTER_API_KEY"))
+            tr = OpenRouterTranscriber(provider=provider)
             try:
                 transcript = tr.transcribe_file(str(audio_path))
             except Exception as e:
@@ -375,9 +375,7 @@ def _confirm_save_dialog() -> None:
                 st.session_state["patient_id"],
                 st.session_state["nueva_evo"],
             )
-            st.session_state["save_success"] = (
-                f"{respuesta['mensaje']} (id={respuesta['id']})."
-            )
+            st.session_state["save_success"] = f"{respuesta['mensaje']} (id={respuesta['id']})."
             st.session_state["save_error"] = None
             st.session_state["save_toast"] = True
         except (ValidationError, ConnectionError) as exc:
@@ -447,8 +445,7 @@ if st.session_state["justificacion"] and st.session_state["nueva_evo"]:
             if st.button("💾 Guardar en historial", use_container_width=True):
                 if not st.session_state.get("patient_id"):
                     st.session_state["save_error"] = (
-                        "Seleccione y cargue un paciente en 'Selección de historial clínico' "
-                        "antes de guardar."
+                        "Seleccione y cargue un paciente en 'Selección de historial clínico' antes de guardar."
                     )
                 else:
                     _confirm_save_dialog()
@@ -474,13 +471,10 @@ if st.session_state["justificacion"] and st.session_state["nueva_evo"]:
         if st.session_state.get("save_error"):
             st.error(st.session_state["save_error"], icon="⚠️")
 
-        tab_evo, tab_just = st.tabs(
-            ["📝 Nueva Evolución (control de cambios)", "💡 Justificación clínica"]
-        )
+        tab_evo, tab_just = st.tabs(["📝 Nueva Evolución (control de cambios)", "💡 Justificación clínica"])
         with tab_evo:
             st.caption(
-                "🟥 Líneas en rojo: eliminadas respecto al día anterior · "
-                "🟩 Líneas en verde: nuevas en esta evolución"
+                "🟥 Líneas en rojo: eliminadas respecto al día anterior · 🟩 Líneas en verde: nuevas en esta evolución"
             )
             diff_lines = compute_line_diff(
                 st.session_state.get("evo_anterior_used") or "",

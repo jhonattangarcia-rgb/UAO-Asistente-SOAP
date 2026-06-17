@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 from groq import APIError
+
 from services.providers.base import ProviderError
 from services.providers.groq_provider import GroqProvider
 
