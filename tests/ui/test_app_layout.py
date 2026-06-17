@@ -1,9 +1,10 @@
 """Smoke tests for the layout/order of app.py using AppTest.
 
 These tests guard against regressions in the visual restructuring done for
-the mobile-responsive redesign (specs/005-mobile-responsive-ui): the audio
-recorder must appear before the text input panels, and the two text input
-panels must remain side by side in a two-column layout.
+the Supabase historial integration (specs/009-supabase-historial-ui): the
+audio recorder now appears AFTER the two text input panels (and above the
+generate button), and the two text input panels remain side by side in a
+two-column layout.
 """
 
 from __future__ import annotations
@@ -63,12 +64,12 @@ def _index_of_text_area_columns_block(children: list[object]) -> int:
     raise AssertionError("No two-column block with two text areas found")
 
 
-def test_recorder_component_appears_before_text_input_panels() -> None:
+def test_recorder_component_appears_after_text_input_panels() -> None:
     at = _load_app()
     children = _main_children(at)
     recorder_index = _index_of_first_containing(children, "UnknownElement")
     text_inputs_index = _index_of_text_area_columns_block(children)
-    assert recorder_index < text_inputs_index
+    assert recorder_index > text_inputs_index
 
 
 def test_text_inputs_remain_in_two_columns() -> None:

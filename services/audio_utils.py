@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -43,3 +44,46 @@ def clear_recording(path: Path) -> None:
     """
     with contextlib.suppress(OSError):
         path.unlink()
+
+
+def get_audio_duration_seconds(path: Path) -> float | None:
+    """Return the duration of an audio file in seconds, or None on failure.
+
+    Uses ``ffprobe`` (part of ffmpeg, already required by the project) to
+    read the container duration. Any failure — ffprobe missing, non-zero
+    exit, or unparseable output — degrades gracefully to ``None`` so the
+    UI can omit the duration without breaking.
+
+    Args:
+        path: Path to the audio file (e.g. a WebM recording).
+
+    Returns:
+        The duration in seconds as a float, or ``None`` if it cannot be
+        determined.
+
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, ValueError):
+        return None
+
+    if result.returncode != 0:
+        return None
+    try:
+        return float(result.stdout.strip())
+    except (TypeError, ValueError):
+        return None

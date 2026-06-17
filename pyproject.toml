@@ -48,7 +48,7 @@ strict = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 disallow_any_unimported = false
-exclude = ["app.py"]
+exclude = ["app.py", "^specs/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

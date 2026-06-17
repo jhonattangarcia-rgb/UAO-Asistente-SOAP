@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from services import audio_utils
 
@@ -52,3 +56,33 @@ def test_clear_recording_swallows_oserror() -> None:
             raise PermissionError("access denied")
 
     audio_utils.clear_recording(_RaisesOnUnlink())  # type: ignore[arg-type]
+
+
+def test_get_audio_duration_seconds_parses_ffprobe_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout="12.34\n", stderr="")
+
+    monkeypatch.setattr("services.audio_utils.subprocess.run", fake_run)
+    assert audio_utils.get_audio_duration_seconds(Path("any.webm")) == pytest.approx(12.34)
+
+
+def test_get_audio_duration_seconds_returns_none_on_invalid_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout="N/A\n", stderr="")
+
+    monkeypatch.setattr("services.audio_utils.subprocess.run", fake_run)
+    assert audio_utils.get_audio_duration_seconds(Path("any.webm")) is None
+
+
+def test_get_audio_duration_seconds_returns_none_on_ffprobe_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise FileNotFoundError("ffprobe not found")
+
+    monkeypatch.setattr("services.audio_utils.subprocess.run", fake_run)
+    assert audio_utils.get_audio_duration_seconds(Path("any.webm")) is None
