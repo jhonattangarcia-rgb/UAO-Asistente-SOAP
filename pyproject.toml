@@ -55,3 +55,9 @@ testpaths = ["tests"]
 addopts = "-v --cov=services --cov=app --cov-report=term-missing"
 python_files = ["test_*.py"]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+]

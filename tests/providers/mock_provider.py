@@ -9,13 +9,13 @@ class MockProvider:
     """Test double implementing the ``AiProvider`` protocol.
 
     Returns a fixed response string or raises a ``ProviderError`` when a
-    ``side_effect`` is configured.  Used to test ``SoapGenerator`` and other
+    ``side_effect`` is configured. Used to test ``SoapGenerator`` and other
     consumers without calling a real AI API.
 
     Args:
         response: The fixed string to return from ``chat_completion``.
         side_effect: An optional exception to raise instead of returning
-            the response.  Wrapped in ``ProviderError`` automatically.
+            the response. Wrapped in ``ProviderError`` automatically.
 
     """
 
@@ -24,6 +24,7 @@ class MockProvider:
         response: str = "",
         side_effect: BaseException | None = None,
     ) -> None:
+        """Store the fixed response and optional side effect for later use."""
         self._response = response
         self._side_effect = side_effect
 
@@ -69,5 +70,6 @@ def _assert_is_ai_provider(instance: object) -> None:
         AssertionError: If the object does not satisfy the protocol.
 
     """
-
-    assert isinstance(instance, AiProvider), f"{type(instance).__name__} does not satisfy the AiProvider protocol"
+    assert isinstance(instance, AiProvider), (
+        f"{type(instance).__name__} does not satisfy the AiProvider protocol"
+    )
