@@ -4,7 +4,7 @@ stages:
   - check
 
 before_script:
-  - apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 nodejs npm
+  - apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 nodejs npm make
   - pip install uv
   - uv sync --extra dev
 
