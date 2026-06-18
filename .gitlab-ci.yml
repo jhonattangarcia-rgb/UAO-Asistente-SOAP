@@ -1,12 +1,23 @@
 image: python:3.12-slim-bookworm
 
+variables:
+  UV_CACHE_DIR: $CI_PROJECT_DIR/.uv-cache
+
+cache:
+  key:
+    files:
+      - uv.lock
+  paths:
+    - .uv-cache/
+    - .venv/
+
 stages:
   - check
 
 before_script:
   - apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 nodejs npm make
   - pip install uv
-  - uv sync --extra dev
+  - uv sync --extra dev --cache-dir $UV_CACHE_DIR
 
 check:
   stage: check
