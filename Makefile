@@ -1,3 +1,10 @@
+IMAGE_NAME  ?= uao-asistente-soap
+IMAGE_TAG   ?= latest
+CONTAINER   ?= uao-asistente-soap
+HOST_PORT   ?= 8501
+CONTAINER_PORT ?= 8501
+ENV_FILE    ?= .env
+
 .PHONY: install test lint format typecheck check run clean help \
         docker-build docker-run docker-stop docker-rm docker-logs docker-rebuild \
         docker-frontend-build check-deps install-ffmpeg
@@ -80,23 +87,23 @@ clean:
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 docker-build:
-	docker build -t uao-asistente-soap:local .
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 docker-run:
 	docker run -d --restart unless-stopped \
-		-p 8501:8501 \
-		--env-file .env \
-		--name uao-asistente-soap \
-		uao-asistente-soap:local
+		-p $(HOST_PORT):$(CONTAINER_PORT) \
+		--env-file $(ENV_FILE) \
+		--name $(CONTAINER) \
+		$(IMAGE_NAME):$(IMAGE_TAG)
 
 docker-stop:
-	docker stop uao-asistente-soap
+	docker stop $(CONTAINER)
 
 docker-rm:
-	docker rm uao-asistente-soap
+	docker rm $(CONTAINER)
 
 docker-logs:
-	docker logs -f uao-asistente-soap
+	docker logs -f $(CONTAINER)
 
 docker-rebuild: docker-stop docker-rm docker-build docker-run
 
