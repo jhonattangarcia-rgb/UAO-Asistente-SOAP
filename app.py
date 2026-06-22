@@ -48,7 +48,7 @@ SOAP_MODEL = os.environ.get("SOAP_MODEL")
 _provider_registry = ProviderRegistry()
 _provider_registry.register("groq", GroqProvider)
 
-st.set_page_config(page_title="Asistente SOAP UCI", layout="wide")
+st.set_page_config(page_title="Asistente SOAP UCI V 1.0.0", layout="wide")
 inject_global_styles()
 st.markdown(render_header(APP_TITLE, APP_SUBTITLE, APP_BADGE), unsafe_allow_html=True)
 
