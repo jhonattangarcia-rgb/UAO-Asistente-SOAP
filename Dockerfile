@@ -31,8 +31,6 @@ RUN if [ -f components/webm_recorder/frontend/package.json ]; then \
 # Capa 4: Código de la app (cambia más seguido)
 COPY app.py ./
 COPY services/ ./services/
-COPY tmp_audio/ ./tmp_audio/
-
 # Capa 5: Usuario no privilegiado
 RUN groupadd -r app \
     && useradd -r -g app -d /home/app -m -s /bin/bash app \
