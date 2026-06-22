@@ -16,7 +16,7 @@ stages:
   - deploy
 
 before_script:
-  - apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 nodejs npm make
+  - apt-get update && apt-get install -y --no-install-recommends     ffmpeg libsndfile1 nodejs npm make curl
   - pip install uv
   - uv sync --extra dev --cache-dir $UV_CACHE_DIR
 
