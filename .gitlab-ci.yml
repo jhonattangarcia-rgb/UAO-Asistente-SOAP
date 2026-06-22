@@ -12,16 +12,36 @@ cache:
     - .venv/
 
 stages:
-  - check
+  - quality
+  - deploy
 
 before_script:
   - apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 nodejs npm make
   - pip install uv
   - uv sync --extra dev --cache-dir $UV_CACHE_DIR
 
-check:
-  stage: check
-  script: make check
+lint:
+  stage: quality
+  script: make lint
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      when: always
+
+typecheck:
+  stage: quality
+  script: make typecheck
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+test:
+  stage: quality
+  script: make test
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+deploy:
+  stage: deploy
+  needs: [lint, typecheck, test]
+  script:
+    - curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
