@@ -8,6 +8,6 @@ copy can change without touching CSS or render logic.
 from __future__ import annotations
 
 APP_BRAND = "⚡ FAST SOAP IA · Asistente Clínico"
-APP_TITLE = "⚡ FAST SOAP IA · Asistente de Evoluciones Clínicas"
+APP_TITLE = "⚡ FAST SOAP IA · Asistente de Evoluciones Clínicas !k2zD:n#gFhbN=}&b:10LjM8=x$J%V"
 APP_SUBTITLE = "Ingrese la evolución anterior y los cambios del turno para generar la nota SOAP automáticamente"
 APP_BADGE = "Versión académico 1.0"
